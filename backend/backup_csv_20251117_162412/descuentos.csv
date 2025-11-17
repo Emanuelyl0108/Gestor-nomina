@@ -1,0 +1,7 @@
+fecha,tipo_descuento,nombre_empleado,monto,descripcion,aplicada,nomina_id
+2025-09-17,colectiva,Juan David Gil,4166.666666666667,Pago de plato desportillado,si,NOMQ-Juan_David-2025-09-01
+2025-09-22,individual,Laura Camila Porras Ferro,4166.0,Pago Plato desportillado,si,NOMQ-Laura_Camila_Porras_Ferro-2025-09-01
+2025-09-22,individual,Yeny Roman,4166.0,Pago plato desportillado,si,NOMQ-Yeny_Roman-2025-09-01
+2025-09-22,individual,Amparo Paez Ortegon,4166.0,Pago de plato desportillado,si,NOMQ-Amparo_Paez_Ortegon-2025-09-01
+2025-09-22,individual,Jeison Marketing,50000.0,Se descuenta 50mil por que se trabajo media semana,si,NOMS-Jeison_Marketing-2025-09-08
+2025-09-22,individual,Jeison Marketing,21000.0,Habia un saldo a favor de nosotros,si,NOMS-Jeison_Marketing-2025-09-01

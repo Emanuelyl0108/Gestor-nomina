@@ -1,0 +1,95 @@
+fecha,id_movimiento,nombre_empleado,tipo,monto,descontado,pago_nomina_id,descripcion
+2025-07-08,CC-2025-07-08-1,Amparo Cocinera,consumo,3900.0,no,,
+2025-07-11,CC-2025-07-11-2,Amparo Cocinera,consumo,7000.0,no,,
+2025-07-16,CC-2025-07-16-3,Amparo Cocinera,consumo,20000.0,no,,
+2025-07-18,CC-2025-07-18-4,Amparo Cocinera,consumo,16000.0,no,,
+2025-07-25,CC-2025-07-25-5,Amparo Cocinera,,8900.0,si,PAGO-AMPARO COCINERA-20250801170523,
+2025-07-30,1030Taxi,Amparo Cocinera,adelanto,10000.0,si,PAGO-AMPARO COCINERA-20250801170523,
+2025-07-25,Adelanto Laura,Laura Porras,adelanto,50000.0,si,PAGO-LAURA PORRAS-20250801170455,
+2025-07-28,adelanto Laura,Laura Porras,adelanto,100000.0,si,PAGO-LAURA PORRAS-20250801170455,
+2025-07-15,CC-2025-07-15-9,Laura Porras,consumo,25800.0,si,PAGO-LAURA PORRAS-20250801170455,
+2025-07-25,CC-2025-07-25-10,Laura Porras,consumo,26000.0,si,PAGO-LAURA PORRAS-20250801170455,
+2025-07-27,pago jeison,Jeison Marketing,adelanto,100000.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-06-28,CC-2025-06-28-12,Jeison Marketing,consumo,24500.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-06-29,CC-2025-06-29-13,Jeison Marketing,consumo,18500.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-07-09,CC-2025-07-09-14,Jeison Marketing,consumo,16900.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-07-14,CC-2025-07-14-15,Jeison Marketing,consumo,18500.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-07-28,CC-2025-07-28-16,Jeison Marketing,consumo,20000.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-07-18,CC-2025-07-18-017,Emanuel,adelanto,45000.0,si,PAGO-EMANUEL-20250801170336,
+2025-07-08,CC-2025-07-08-018,Amparo_Cocinera,consumo,3900.0,si,PAGO-AMPARO_COCINERA-20250801172112,
+2025-07-11,CC-2025-07-11-019,Amparo_Cocinera,consumo,7000.0,si,PAGO-AMPARO_COCINERA-20250801172112,
+2025-07-16,CC-2025-07-16-020,Amparo_Cocinera,consumo,20000.0,si,PAGO-AMPARO_COCINERA-20250801172112,
+2025-07-18,CC-2025-07-18-021,Amparo_Cocinera,consumo,16000.0,si,PAGO-AMPARO_COCINERA-20250801172112,
+2025-07-25,CC-2025-07-25-022,Amparo_Cocinera,adelanto,8900.0,si,PAGO-AMPARO_COCINERA-20250801172112,
+2025-07-30,CC-2025-07-30-023,Amparo_Cocinera,adelanto,10000.0,si,PAGO-AMPARO_COCINERA-20250801172112,
+2025-07-19,CC-2025-07-19-026,Brandon,adelanto,500000.0,si,PAGO-BRANDON-20250802134910,
+2025-08-09,adelanto jeison,Jeison Marketing,adelanto,50000.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-08-10,adelanto,Jeison Marketing,adelanto,100000.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-08-13,pago adelanto,Jeison Marketing,adelanto,250000.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-07-10,CC-2025-07-10-030,Jeison Marketing,consumo,24500.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-08-15,CC-2025-08-15-031,Jeison Marketing,consumo,16000.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-08-16,pago,Jeison Marketing,adelanto,250000.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-08-09,adelanto,Amparo_Cocinera,adelanto,50000.0,si,PAGO-AMPARO_COCINERA-20250818191758,
+2025-07-31,CC-2025-07-31-034,Amparo_Cocinera,consumo,13600.0,si,PAGO-AMPARO_COCINERA-20250818191758,
+2025-08-07,CC-2025-08-07-035,Amparo_Cocinera,consumo,4250.0,si,PAGO-AMPARO_COCINERA-20250818191758,
+2025-08-07,CC-2025-08-07-036,Laura Porras,consumo,7650.0,si,PAGO-LAURA PORRAS-20250818191636,
+2025-08-18,CC-2025-08-18-037,Jeison Marketing,consumo,7500.0,si,PAGO-JEISON MARKETING-20250818195002,
+2025-08-23,Fueron 60mil pero se le debian 3500 de ll pago anterior,Jeison Marketing,adelanto,56500.0,si,PAGO-JEISON MARKETING-20250831170013,
+2025-08-25,adelanto,Jeison Marketing,adelanto,120000.0,si,PAGO-JEISON MARKETING-20250831170013,
+2025-08-28,CC-2025-08-28-040,Jeison Marketing,consumo,24500.0,si,PAGO-JEISON MARKETING-20250831170013,
+2025-08-29,CC-2025-08-29-041,Laura Camila Porras Ferro,consumo,15300.0,si,PAGO-LAURA PORRAS-20250831175119,
+2025-08-29,CC-2025-08-29-042,Yeny Roman,consumo,15300.0,si,PAGO-YENY ROMAN-20250831175125,
+2025-08-24,CC-2025-08-24-043,Amparo Paez Ortegon,consumo,28050.0,si,PAGO-AMPARO_COCINERA-20250831175133,
+2025-08-24,CC-2025-08-24-044,Yeny Roman,consumo,16150.0,si,PAGO-YENY ROMAN-20250831175125,
+2025-08-20,CC-2025-08-20-045,Laura Camila Porras Ferro,consumo,8500.0,si,PAGO-LAURA PORRAS-20250831175119,
+2025-09-11,CC-2025-09-11-046,Laura Camila Porras Ferro,consumo,22800.0,si,PAGO-20250922215005,
+2025-09-12,CC-2025-09-12-047,Amparo Paez Ortegon,consumo,6600.0,si,PAGO-20250922223747,
+2025-09-01,CC-2025-09-01-048,Laura Camila Porras Ferro,consumo,21900.0,si,PAGO-20250922215005,
+2025-09-04,CC-2025-09-04-049,Jeison Marketing,consumo,18000.0,si,PAGO-20250922231008,
+2025-09-07,CC-2025-09-07-050,Juan David Gil,consumo,30600.0,si,PAGO-20250922213629,
+2025-09-07,CC-2025-09-07-051,Juan David Gil,consumo,2900.0,si,PAGO-20250922213629,
+2025-09-15,CC-2025-09-15-052,Juan David Gil,consumo,13600.0,si,PAGO-20250922213629,
+2025-09-15,CC-2025-09-15-053,Yeny Roman,consumo,15300.0,si,PAGO-20250922222840,
+2025-09-15,6000,Jeison Marketing,consumo,6000.0,si,PAGO-20250922231008,
+2025-08-31,CC-2025-08-31-MOV-77cba497,Laura Porras Ferro,adelanto,100000.0,no,,Pide un adelanto y que se le cobre la segunda quincena de septiembre
+2025-09-06,CC-2025-09-06-MOV-af590e04,Jeison Marketing,adelanto,100000.0,si,PAGO-20250922231008,Pidio adelanto esa semana.
+2025-08-31,CC-2025-08-31-MOV-b63200bd,Laura Camila Porras Ferro,adelanto,100000.0,si,PAGO-20251007183935,"Solicita un adelanto, pero pide el favor de que se le descuente la segunda quincena de septiembre"
+2025-09-25,CC-2025-09-25-MOV-32b2ac0c,Laura Camila Porras Ferro,adelanto,300000.0,si,PAGO-20251007183935,Le pidio adelanto a brandon
+2025-09-22,CC-2025-09-22-MOV-f2eba313,Laura Camila Porras Ferro,consumo,33830.0,si,PAGO-20251007183935,"1 carne asada, Empaque."
+2025-09-20,CC-2025-09-20-MOV-861ec7d0,Laura Camila Porras Ferro,consumo,7300.0,si,PAGO-20251007183935,"1 Fuze te, 1 coca cola 1.5 (Habia cancelado 6 mil en efectivo, saldo 7300 con el Dto.)"
+2025-09-19,CC-2025-09-19-MOV-55f3e532,Yeny Roman,consumo,2100.0,si,PAGO-20251007183958,1 coca-cola 250ml
+2025-09-28,CC-2025-09-28-MOV-a7633324,Yeny Roman,consumo,6800.0,si,PAGO-20251007183958,"1 adicion de pechuga apanada, 1 adicion de queso."
+2025-09-28,CC-2025-09-28-MOV-f7af24b9,Amparo Paez Ortegon,consumo,15200.0,si,PAGO-20251007184018,"1 adicion de pechuga, 1 cuatro 350, 1 coca-cola 1.5"
+2025-10-01,CC-2025-10-01-MOV-1b0a3742,Laura Camila Porras Ferro,adelanto,200000.0,si,PAGO-20251007183935,Adelanto a Laura Autoriza Senor Brandon
+2025-09-29,CC-2025-09-29-MOV-5f33b8a4,Dilsa Fernanda Dorado Sierra,consumo,11050.0,si,PAGO-20251007184108,"2 coca-cola 500ml, 1 arepa."
+2025-09-28,CC-2025-09-28-MOV-d43733d0,Dilsa Fernanda Dorado Sierra,adelanto,200000.0,si,PAGO-20251007184108,Adelanto senora Fernando autorizado por brandon.
+2025-09-26,CC-2025-09-26-MOV-9607ba1b,Dilsa Fernanda Dorado Sierra,adelanto,50000.0,si,PAGO-20251007184108,se le pago el turno de ese dia autorizado por brandon.
+2025-10-03,CC-2025-10-03-MOV-23b20ca5,Amparo Paez Ortegon,adelanto,400000.0,si,PAGO-20251007184018,Adelanto autorizado por brandon
+2025-10-13,CC-2025-10-13-MOV-8eba21ce,Laura Camila Porras Ferro,adelanto,100000.0,no,,to autorizado por Brandon
+2025-10-13,CC-2025-10-13-MOV-3b9d32db,Dilsa Fernanda Dorado Sierra,adelanto,200000.0,si,PAGO-20251021230047,Autorizado por Brandon
+2025-10-11,CC-2025-10-11-MOV-08c4295b,Dilsa Fernanda Dorado Sierra,adelanto,50000.0,si,PAGO-20251021230047,Adelanto autorizado por la Sra. Zamira
+2025-10-11,CC-2025-10-11-MOV-34571f64,Juan David Gil,adelanto,200000.0,si,PAGO-20251021230009,Autoriza Sr Brandon.
+2025-10-11,CC-2025-10-11-MOV-690d7a9f,Laura Camila Porras Ferro,adelanto,50000.0,si,PAGO-20251021225921,Autoriza Sr Brandon
+2025-10-04,CC-2025-10-04-MOV-2205f0d4,Amparo Paez Ortegon,consumo,3300.0,si,PAGO-20251021225943,1 Gaseosa coca-cola
+2025-10-08,CC-2025-10-08-MOV-830c1804,Dilsa Fernanda Dorado Sierra,consumo,44000.0,si,PAGO-20251021230047,"1 Burrito de carne, 1 Burrito de pollo"
+2025-10-11,CC-2025-10-11-MOV-853b2272,Dilsa Fernanda Dorado Sierra,consumo,3300.0,si,PAGO-20251021230047,1 Coca-cola 350
+2025-10-02,CC-2025-10-02-MOV-48658b59,Juan David Gil,consumo,38000.0,si,PAGO-20251021230009,"1 coca-cola 350, 1 Burrito  de pollo, 1 Papas con sobrebarriga"
+2025-10-05,CC-2025-10-05-MOV-814e5756,Juan David Gil,consumo,3400.0,si,PAGO-20251021230009,1 coca-cola en lata
+2025-10-10,CC-2025-10-10-MOV-e95b0b2f,Juan David Gil,consumo,3400.0,si,PAGO-20251021230009,1 coca-cola en lata
+2025-10-03,CC-2025-10-03-MOV-ed526b09,Laura Camila Porras Ferro,consumo,4500.0,si,PAGO-20251021225921,1 fuez te.
+2025-10-04,CC-2025-10-04-MOV-eea9eff1,Yeny Roman,consumo,18700.0,si,PAGO-20251021225935,1 alitas\
+2025-10-01,CC-2025-10-01-MOV-8a36e46e,Juan David Gil,adelanto,50000.0,si,PAGO-20251021230009,Adelanto Autorizado por Brandon.
+2025-10-04,CC-2025-10-04-MOV-977fc5ca,Juan David Gil,adelanto,80000.0,si,PAGO-20251021230009,Adelanto que autoriza Brandon.
+2025-10-07,CC-2025-10-07-MOV-d0c81c5d,Juan David Gil,adelanto,100000.0,si,PAGO-20251021230009,Adelanto que autoriza Brandon.
+2025-10-19,CC-2025-10-19-MOV-e0d1d0e1,Dilsa Fernanda Dorado Sierra,adelanto,100000.0,no,,Adelanto a fernanda autoriza Brandon.
+2025-10-18,CC-2025-10-18-MOV-be61836f,Dilsa Fernanda Dorado Sierra,adelanto,397000.0,no,,adelanto fernanda cocina
+2025-10-18,CC-2025-10-18-MOV-aae3f28b,Laura Camila Porras Ferro,adelanto,20000.0,no,,Pide descontar de la segunda quincena de octubre.
+2025-10-17,CC-2025-10-17-MOV-10d126a0,Laura Camila Porras Ferro,consumo,28900.0,no,,1 alitas x14
+2025-10-18,CC-2025-10-18-MOV-cae43563,Laura Camila Porras Ferro,consumo,5950.0,no,,1 ajiaco pequeno
+2025-10-31,CC-2025-10-31-MOV-d9faa7be,Amparo Paez Ortegon,adelanto,50000.0,si,PAGO-20251117154506,"Adelanto senora Amparo, Autoriza Brandon."
+2025-10-26,CC-2025-10-26-MOV-fdacc1b1,Yeny Roman,consumo,3400.0,si,PAGO-20251117154826,1 Arepa Boyacense
+2025-10-30,CC-2025-10-30-MOV-60cf9311,Amparo Paez Ortegon,consumo,26700.0,si,PAGO-20251117154506,"1 Coca cola zero 350ml, 1 Alitas x14"
+2025-10-31,CC-2025-10-31-MOV-bece76ac,Amparo Paez Ortegon,consumo,17000.0,si,PAGO-20251117154506,"1 Ginger 1.75 litros, 1 Quatro 1.5 Litros."
+2025-11-02,CC-2025-11-02-MOV-5cbfa515,Amparo Paez Ortegon,consumo,3300.0,no,,1 Coca-cola zero 350ml
+2025-11-02,CC-2025-11-02-MOV-a79e97f2,Yeny Roman,consumo,8500.0,no,,1 GInger 1.75 Lt
+2025-11-06,CC-2025-11-06-MOV-3a6522cb,Amparo Paez Ortegon,consumo,3300.0,no,,1 Coca-cola 350ml

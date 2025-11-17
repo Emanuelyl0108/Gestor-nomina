@@ -1,0 +1,43 @@
+nombre,dias_completos,medios_turnos,faltas,quincena_inicio,quincena_fin,id_turno,medios_turnos_adicionales,medios_sustitutos,medios_adicionales,dias_extras
+Yeny Roman,13,0.0,0,2025-07-16,2025-07-30,,,,,
+Laura Camila Porras Ferro,13,0.0,0,2025-07-16,2025-07-30,,,,,
+Amparo Paez Ortegon,15,0.0,0,2025-07-16,2025-07-30,,,,,
+Emanuel,15,0.0,0,2025-07-16,2025-07-30,,,,,
+Amparo Paez Ortegon,15,0.0,0,2025-07-16,2025-07-30,,,,,
+Prueba,13,0.0,2,2025-07-16,2025-07-30,,,,,
+Prueba 2,15,0.0,0,2025-07-18,2025-08-01,,,,,
+Brandon,15,0.0,0,2025-07-16,2025-07-30,,,,,
+Laura Camila Porras Ferro,15,0.0,0,2025-08-1,2025-08-15,,,,,
+Yeny Roman,15,0.0,0,2025-08-1,2025-08-15,,,,,
+Amparo Paez Ortegon,15,0.0,0,2025-08-1,2025-08-15,,,,,
+Laura Camila Porras Ferro,11,0.0,4,2025-08-16,2025-08-30,,,,,
+Yeny Roman,14,0.0,1,2025-08-16,2025-08-30,,,,,
+Amparo Paez Ortegon,15,0.0,0,2025-08-16,2025-08-30,,,,,
+Emanuel Rodriguez,15,0.0,0,2025-08-16,2025-08-30,,,,,
+Emanuel Rodriguez,15,0.0,0,2025-09-01,2025-09-15,,,,,
+Amparo Paez Ortegon,14,,0,2025-09-01,2025-09-15,TR-0b76cb8c,,1.0,0.0,
+Juan David Gil,13,,0,2025-09-01,2025-09-15,TR-99ee2492,,2.5,0.0,
+Prueba,11,,0,2025-09-16,2025-09-30,TR-de4f1d30,,4.0,0.0,
+Maria Carolina Pinzon Santamaria,13,,2,2025-09-01,2025-09-15,TR-1a6f7217,,0.0,0.0,
+Laura Camila Porras Ferro,9,,6,2025-09-01,2025-09-15,TR-d6c71bd1,,0.0,0.0,
+Yeny Roman,10,,5,2025-09-01,2025-09-15,TR-4434ba10,,0.0,1.0,
+Yeny Roman,15,,0,2025-09-16,2025-09-30,TR-592755f7,,0.0,1.0,
+Laura Camila Porras Ferro,14,,1,2025-09-16,2025-09-30,TR-fcedc88a,,0.0,1.0,
+Amparo Paez Ortegon,16,,0,2025-09-16,2025-09-30,TR-896ff4d0,,0.0,0.0,
+Maria Carolina Pinzon Santamaria,15,,0,2025-09-16,2025-09-30,TR-6cc939fa,,0.0,0.0,
+Dilsa Fernanda Dorado Sierra,11,,4,2025-09-16,2025-09-30,TR-2128f7de,,0.0,0.0,
+Leidy Brizneth Poveda Ferro,4,,11,2025-09-16,2025-09-30,TR-87ce84e1,,0.0,0.0,
+Emanuel Rodriguez,15,,0,2025-09-16,2025-09-30,TR-ff93878d,,0.0,0.0,
+Laura Camila Porras Ferro,14,,1,2025-10-01,2025-10-15,TR-e551fdf5,,0.0,0.0,0.0
+Amparo Paez Ortegon,14,,1,2025-10-01,2025-10-15,TR-8b11a77e,,0.0,0.0,0.0
+Yeny Roman,14,,1,2025-10-01,2025-10-15,TR-cc0b42df,,0.0,0.0,0.0
+Dilsa Fernanda Dorado Sierra,14,,1,2025-10-01,2025-10-15,TR-250d3bf8,,0.0,0.0,0.0
+Maria Carolina Pinzon Santamaria,15,,0,2025-10-01,2025-10-15,TR-9cd364df,,0.0,0.0,0.0
+Juan David Gil,12,,3,2025-10-01,2025-10-15,TR-44a595d2,,0.0,0.0,0.0
+Emanuel Rodriguez,15,,0,2025-10-01,2025-10-15,TR-5009be8b,,0.0,0.0,0.0
+Maria Carolina Pinzon Santamaria,12,,2,2025-10-16,2025-10-30,TR-6cb77aeb,,1.0,0.0,0.0
+Yeny Roman,11,,4,2025-10-16,2025-10-30,TR-3b228317,,0.0,0.0,0.0
+Emanuel Rodriguez,15,,0,2025-10-16,2025-10-30,TR-168178e7,,0.0,0.0,0.0
+Ivan Arevalo Rodriguez,5,,10,2025-10-16,2025-10-30,TR-8330a0db,,0.0,0.0,0.0
+Amparo Paez Ortegon,5,,10,2025-10-16,2025-10-30,TR-e7bac706,,0.0,0.0,0.0
+Fabian Rodriguez,6,,9,2025-10-16,2025-10-30,TR-003cc781,,0.0,0.0,0.0
