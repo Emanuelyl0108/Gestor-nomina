@@ -1,8 +1,0 @@
-fecha_reversion,pago_original_fecha,nombre_empleado,monto_revertido,propina_revertida,motivo,comentario,usuario
-2025-08-02 01:00:57,2025-08-02,Prueba,650000.0,50000.0,Error en descuentos,,Sistema
-2025-08-02 01:21:47,2025-08-02,Prueba 2,693333.33,0.0,Error en el cálculo,,Sistema
-2025-08-18 19:20:50,2025-08-18,Jeison Marketing,1050000.0,0.0,Error en el cálculo,,Sistema
-2025-08-31 16:54:09,2025-08-31,Jeison Marketing,123500.0,0.0,Error en descuentos,falto descontar consumo,Sistema
-2025-08-31 16:54:29,2025-08-18,Jeison Marketing,153600.0,0.0,Error en descuentos,Falto descontar,Sistema
-2025-08-31 17:46:35,2025-08-31,Laura Porras,599533.33,0.0,Datos incorrectos del empleado,,Sistema
-2025-08-31 17:47:09,2025-08-31,Yeny Roman,668550.0,0.0,Error en descuentos,,Sistema

@@ -27,3 +27,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Backups de migración CSV
+backend/backup_csv_*/
