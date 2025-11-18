@@ -1,0 +1,227 @@
+import React, { useState, useEffect } from 'react';
+import { Users, DollarSign, TrendingUp, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://gestor-nomina-backend.onrender.com/api';
+
+export default function Dashboard() {
+  const [empleados, setEmpleados] = useState([]);
+  const [movimientosPendientes, setMovimientosPendientes] = useState([]);
+  const [nominasPendientes, setNominasPendientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    try {
+      const [empRes, movRes, nomRes] = await Promise.all([
+        axios.get(`${API_URL}/nomina/empleados`),
+        axios.get(`${API_URL}/nomina/movimientos/pendientes`),
+        axios.get(`${API_URL}/nomina/pendientes`)
+      ]);
+
+      setEmpleados(empRes.data);
+      setMovimientosPendientes(movRes.data);
+      setNominasPendientes(nomRes.data);
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const empleadosActivos = empleados.filter(e => e.estado === 'activo').length;
+  const totalMovimientosPendientes = movimientosPendientes.reduce((sum, m) => sum + m.monto, 0);
+  const totalNominasPendientes = nominasPendientes.reduce((sum, n) => sum + n.total_pagar, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-gray-600 text-xl">Cargando datos...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-500 mt-1">Resumen general del sistema de nómina</p>
+      </div>
+
+      {/* Tarjetas de estadísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Empleados Activos */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Users className="text-blue-600" size={24} />
+            </div>
+            <span className="text-3xl font-bold text-gray-900">{empleadosActivos}</span>
+          </div>
+          <p className="text-sm text-gray-600 font-medium">Empleados Activos</p>
+          <p className="text-xs text-gray-400 mt-1">De {empleados.length} totales</p>
+        </div>
+
+        {/* Movimientos Pendientes */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+              <AlertCircle className="text-orange-600" size={24} />
+            </div>
+            <span className="text-3xl font-bold text-gray-900">{movimientosPendientes.length}</span>
+          </div>
+          <p className="text-sm text-gray-600 font-medium">Movimientos Pendientes</p>
+          <p className="text-xs text-orange-600 mt-1 font-semibold">
+            ${totalMovimientosPendientes.toLocaleString('es-CO')}
+          </p>
+        </div>
+
+        {/* Nóminas Pendientes */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Clock className="text-purple-600" size={24} />
+            </div>
+            <span className="text-3xl font-bold text-gray-900">{nominasPendientes.length}</span>
+          </div>
+          <p className="text-sm text-gray-600 font-medium">Nóminas Pendientes</p>
+          <p className="text-xs text-gray-400 mt-1">Por procesar</p>
+        </div>
+
+        {/* Total a Pagar */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <DollarSign className="text-green-600" size={24} />
+            </div>
+            <span className="text-3xl font-bold text-gray-900">
+              ${(totalNominasPendientes / 1000000).toFixed(1)}M
+            </span>
+          </div>
+          <p className="text-sm text-gray-600 font-medium">Total a Pagar</p>
+          <p className="text-xs text-green-600 mt-1 font-semibold">
+            ${totalNominasPendientes.toLocaleString('es-CO')}
+          </p>
+        </div>
+      </div>
+
+      {/* Movimientos Recientes */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900">Movimientos Pendientes Recientes</h2>
+          {movimientosPendientes.length > 0 && (
+            <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
+              {movimientosPendientes.length} pendientes
+            </span>
+          )}
+        </div>
+        
+        {movimientosPendientes.length === 0 ? (
+          <div className="text-center py-12">
+            <CheckCircle className="mx-auto text-green-500 mb-3" size={48} />
+            <p className="text-gray-500">No hay movimientos pendientes</p>
+            <p className="text-sm text-gray-400 mt-1">Todos los movimientos están al día</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {movimientosPendientes.slice(0, 5).map((mov) => (
+              <div
+                key={mov.id}
+                className="flex justify-between items-center p-4 bg-gray-50 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                    mov.tipo === 'adelanto' ? 'bg-yellow-100' : 'bg-blue-100'
+                  }`}>
+                    <span className="text-2xl">{mov.tipo === 'adelanto' ? '💰' : '🍽️'}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{mov.empleado_nombre}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        mov.tipo === 'adelanto' 
+                          ? 'bg-yellow-100 text-yellow-700' 
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {mov.tipo === 'adelanto' ? 'Adelanto' : 'Consumo'}
+                      </span>
+                      <span className="text-sm text-gray-500">{mov.fecha}</span>
+                    </div>
+                    {mov.descripcion && (
+                      <p className="text-xs text-gray-500 mt-1">{mov.descripcion}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-red-600">
+                    -${mov.monto.toLocaleString('es-CO')}
+                  </p>
+                  <span className="text-xs text-gray-500">Por descontar</span>
+                </div>
+              </div>
+            ))}
+            {movimientosPendientes.length > 5 && (
+              <p className="text-center text-sm text-gray-500 pt-2">
+                Y {movimientosPendientes.length - 5} movimientos más...
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Alertas y Recordatorios */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Alerta de Movimientos */}
+        {movimientosPendientes.length > 0 && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="text-orange-600 flex-shrink-0 mt-1" size={24} />
+              <div>
+                <h3 className="font-semibold text-orange-900 mb-2">Movimientos por descontar</h3>
+                <p className="text-sm text-orange-700">
+                  Hay <strong>{movimientosPendientes.length} movimientos</strong> pendientes por un total de{' '}
+                  <strong>${totalMovimientosPendientes.toLocaleString('es-CO')}</strong> que se descontarán en la próxima nómina.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info de Nóminas */}
+        {nominasPendientes.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-start gap-3">
+              <Clock className="text-blue-600 flex-shrink-0 mt-1" size={24} />
+              <div>
+                <h3 className="font-semibold text-blue-900 mb-2">Nóminas pendientes</h3>
+                <p className="text-sm text-blue-700">
+                  Tienes <strong>{nominasPendientes.length} nóminas</strong> calculadas y listas para pagar por un total de{' '}
+                  <strong>${totalNominasPendientes.toLocaleString('es-CO')}</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Todo al día */}
+        {movimientosPendientes.length === 0 && nominasPendientes.length === 0 && (
+          <div className="md:col-span-2 bg-green-50 border border-green-200 rounded-lg p-6">
+            <div className="flex items-center gap-3 justify-center">
+              <CheckCircle className="text-green-600" size={32} />
+              <div>
+                <h3 className="font-semibold text-green-900">¡Todo al día!</h3>
+                <p className="text-sm text-green-700 mt-1">
+                  No hay movimientos ni nóminas pendientes. El sistema está actualizado.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
