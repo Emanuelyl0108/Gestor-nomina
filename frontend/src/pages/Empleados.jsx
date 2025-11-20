@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User, Edit2, Trash2, UserX, UserCheck, Plus, Search, X, Save } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://gestor-nomina-backend.onrender.com/api';
+import { apiRequest } from '../config/api';
+import API_CONFIG from '../config/api';
 
 export default function Empleados() {
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState('activo'); // 'activo', 'inactivo', 'todos'
+  const [filtroEstado, setFiltroEstado] = useState('ACTIVO');
   
   // Modales
   const [modalCrear, setModalCrear] = useState(false);
@@ -30,8 +29,8 @@ export default function Empleados() {
 
   const cargarEmpleados = async () => {
     try {
-      const response = await axios.get(`${API_URL}/nomina/empleados`);
-      setEmpleados(response.data);
+      const data = await apiRequest(API_CONFIG.ENDPOINTS.EMPLEADOS);
+      setEmpleados(data || []);
     } catch (error) {
       console.error('Error cargando empleados:', error);
       alert('Error al cargar empleados');
@@ -43,7 +42,10 @@ export default function Empleados() {
   const crearEmpleado = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_URL}/nomina/empleados`, formData);
+      await apiRequest(API_CONFIG.ENDPOINTS.EMPLEADOS, {
+        method: 'POST',
+        body: JSON.stringify(formData),
+      });
       alert('✅ Empleado creado correctamente');
       setModalCrear(false);
       resetForm();
@@ -69,7 +71,10 @@ export default function Empleados() {
   const guardarEdicion = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`${API_URL}/nomina/empleados/${empleadoEditando.id}`, formData);
+      await apiRequest(API_CONFIG.ENDPOINTS.EMPLEADO(empleadoEditando.id), {
+        method: 'PUT',
+        body: JSON.stringify(formData),
+      });
       alert('✅ Empleado actualizado correctamente');
       setModalEditar(false);
       setEmpleadoEditando(null);
@@ -82,15 +87,18 @@ export default function Empleados() {
   };
 
   const toggleEstado = async (empleado) => {
-    const nuevoEstado = empleado.estado === 'activo' ? 'inactivo' : 'activo';
+    const nuevoEstado = empleado.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
     const confirmar = window.confirm(
-      `¿Está seguro de ${nuevoEstado === 'inactivo' ? 'INACTIVAR' : 'ACTIVAR'} a ${empleado.nombre}?`
+      `¿Está seguro de ${nuevoEstado === 'INACTIVO' ? 'INACTIVAR' : 'ACTIVAR'} a ${empleado.nombre}?`
     );
     
     if (confirmar) {
       try {
-        await axios.put(`${API_URL}/nomina/empleados/${empleado.id}`, { estado: nuevoEstado });
-        alert(`✅ Empleado ${nuevoEstado === 'inactivo' ? 'inactivado' : 'activado'} correctamente`);
+        await apiRequest(API_CONFIG.ENDPOINTS.EMPLEADO(empleado.id), {
+          method: 'PUT',
+          body: JSON.stringify({ ...empleado, estado: nuevoEstado }),
+        });
+        alert(`✅ Empleado ${nuevoEstado === 'INACTIVO' ? 'inactivado' : 'activado'} correctamente`);
         cargarEmpleados();
       } catch (error) {
         console.error('Error cambiando estado:', error);
@@ -106,7 +114,9 @@ export default function Empleados() {
     
     if (confirmar) {
       try {
-        await axios.delete(`${API_URL}/nomina/empleados/${empleado.id}`);
+        await apiRequest(API_CONFIG.ENDPOINTS.EMPLEADO(empleado.id), {
+          method: 'DELETE',
+        });
         alert('✅ Empleado eliminado correctamente');
         cargarEmpleados();
       } catch (error) {
@@ -173,24 +183,24 @@ export default function Empleados() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setFiltroEstado('activo')}
+              onClick={() => setFiltroEstado('ACTIVO')}
               className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                filtroEstado === 'activo'
+                filtroEstado === 'ACTIVO'
                   ? 'bg-green-100 text-green-700 border-2 border-green-500'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              Activos ({empleados.filter(e => e.estado === 'activo').length})
+              Activos ({empleados.filter(e => e.estado === 'ACTIVO').length})
             </button>
             <button
-              onClick={() => setFiltroEstado('inactivo')}
+              onClick={() => setFiltroEstado('INACTIVO')}
               className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                filtroEstado === 'inactivo'
+                filtroEstado === 'INACTIVO'
                   ? 'bg-red-100 text-red-700 border-2 border-red-500'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              Inactivos ({empleados.filter(e => e.estado === 'inactivo').length})
+              Inactivos ({empleados.filter(e => e.estado === 'INACTIVO').length})
             </button>
             <button
               onClick={() => setFiltroEstado('todos')}
@@ -234,11 +244,11 @@ export default function Empleados() {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          emp.estado === 'activo' ? 'bg-blue-100' : 'bg-gray-100'
+                          emp.estado === 'ACTIVO' ? 'bg-blue-100' : 'bg-gray-100'
                         }`}>
-                          <User size={20} className={emp.estado === 'activo' ? 'text-blue-600' : 'text-gray-400'} />
+                          <User size={20} className={emp.estado === 'ACTIVO' ? 'text-blue-600' : 'text-gray-400'} />
                         </div>
-                        <span className={`font-medium ${emp.estado === 'activo' ? 'text-gray-900' : 'text-gray-400'}`}>
+                        <span className={`font-medium ${emp.estado === 'ACTIVO' ? 'text-gray-900' : 'text-gray-400'}`}>
                           {emp.nombre}
                         </span>
                       </div>
@@ -255,11 +265,11 @@ export default function Empleados() {
                     <td className="py-3 px-4 text-gray-600 capitalize">{emp.tipo_pago}</td>
                     <td className="py-3 px-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        emp.estado === 'activo'
+                        emp.estado === 'ACTIVO'
                           ? 'bg-green-100 text-green-700'
                           : 'bg-red-100 text-red-700'
                       }`}>
-                        {emp.estado === 'activo' ? '✓ Activo' : '✗ Inactivo'}
+                        {emp.estado === 'ACTIVO' ? '✓ Activo' : '✗ Inactivo'}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -274,13 +284,13 @@ export default function Empleados() {
                         <button
                           onClick={() => toggleEstado(emp)}
                           className={`p-2 rounded-lg transition-colors ${
-                            emp.estado === 'activo'
+                            emp.estado === 'ACTIVO'
                               ? 'bg-orange-100 hover:bg-orange-200 text-orange-700'
                               : 'bg-green-100 hover:bg-green-200 text-green-700'
                           }`}
-                          title={emp.estado === 'activo' ? 'Inactivar' : 'Activar'}
+                          title={emp.estado === 'ACTIVO' ? 'Inactivar' : 'Activar'}
                         >
-                          {emp.estado === 'activo' ? <UserX size={16} /> : <UserCheck size={16} />}
+                          {emp.estado === 'ACTIVO' ? <UserX size={16} /> : <UserCheck size={16} />}
                         </button>
                         <button
                           onClick={() => eliminarEmpleado(emp)}

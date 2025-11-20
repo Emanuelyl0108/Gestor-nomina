@@ -1,0 +1,8 @@
+fecha,tipo_bono,nombre_empleado,monto,descripcion,aplicada,nomina_id
+2025-09-18,individual,Juan David Gil,40000.0,Reconocimiento por el trabajo del 6-7 de septiembre,si,NOMQ-Juan_David-2025-09-01
+2025-10-15,colectiva,Amparo Paez Ortegon,50000.0,Bono de reconocimiento por el trabajo realizado el Fin de semana del 11 al 13 de octubre.,pagado,NOMQ-Amparo_Paez_Ortegon-2025-10-01
+2025-10-15,colectiva,Dilsa Fernanda Dorado Sierra,50000.0,Bono de reconocimiento por el trabajo realizado el Fin de semana del 11 al 13 de octubre.,pagado,NOMQ-Dilsa_Fernanda_Dorado_Sierra-2025-10-01
+2025-10-15,colectiva,Laura Camila Porras Ferro,30000.0,Bono de reconocimiento.,pagado,NOMQ-Laura_Camila_Porras_Ferro-2025-10-01
+2025-10-15,colectiva,Yeny Roman,30000.0,Bono de reconocimiento.,pagado,NOMQ-Yeny_Roman-2025-10-01
+2025-10-15,colectiva,Maria Carolina Pinzon Santamaria,30000.0,Bono de reconocimiento.,pagado,NOMQ-Maria_Carolina_Pinzon_Santamaria-2025-10-01
+2025-11-07,individual,Emanuel Rodriguez,169000.0,Pago de la mensualidad del sistema FUDO.,pagado,NOMQ-Emanuel_Rodriguez-2025-10-16

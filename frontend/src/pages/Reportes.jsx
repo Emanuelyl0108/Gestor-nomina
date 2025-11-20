@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, Calendar, TrendingUp, DollarSign } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://gestor-nomina-backend.onrender.com/api';
+import { apiRequest } from '../config/api';
+import API_CONFIG from '../config/api';
 
 export default function Reportes() {
   const [pagos, setPagos] = useState([]);
@@ -19,8 +18,8 @@ export default function Reportes() {
 
   const cargarPagos = async () => {
     try {
-      const response = await axios.get(`${API_URL}/nomina/pagos`);
-      setPagos(response.data);
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.PAGOS);
+      setPagos(response);
     } catch (error) {
       console.error('Error cargando pagos:', error);
     } finally {
@@ -44,9 +43,9 @@ export default function Reportes() {
     return cumpleFiltros;
   });
 
-  const totalPagado = pagosFiltrados.reduce((sum, p) => sum + (p.total_pagar || p.monto || 0), 0);
-  const totalPropinas = pagosFiltrados.reduce((sum, p) => sum + (p.total_propinas || p.propina || 0), 0);
-  const totalBonos = pagosFiltrados.reduce((sum, p) => sum + (p.total_bonos || 0), 0);
+  const totalPagado = pagosFiltrados.reduce((sum, p) => sum + (p.total_pagado || 0), 0);
+  const totalPropinas = pagosFiltrados.reduce((sum, p) => sum + (p.propinas || 0), 0);
+  const totalBonos = pagosFiltrados.reduce((sum, p) => sum + (p.bonos || 0), 0);
 
   const exportarExcel = () => {
     // Crear CSV
@@ -54,12 +53,12 @@ export default function Reportes() {
     const rows = pagosFiltrados.map(p => [
       p.fecha_pago,
       p.empleado_nombre,
-      p.tipo_nomina,
+      p.tipo_nomina || 'N/A',
       p.periodo,
-      p.monto || 0,
-      p.total_propinas || p.propina || 0,
-      p.total_bonos || 0,
-      p.total_pagar || p.monto || 0
+      p.monto_base || 0,
+      p.propinas || 0,
+      p.bonos || 0,
+      p.total_pagado || 0
     ]);
 
     let csv = headers.join(',') + '\n';
@@ -205,25 +204,25 @@ export default function Reportes() {
               ) : (
                 pagosFiltrados.map((pago, index) => (
                   <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-900">{pago.fecha_pago}</td>
+                    <td className="py-3 px-4 text-gray-900">{pago.fecha_pago?.split('T')[0]}</td>
                     <td className="py-3 px-4 font-semibold text-gray-900">{pago.empleado_nombre}</td>
                     <td className="py-3 px-4">
                       <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium capitalize">
-                        {pago.tipo_nomina}
+                        {pago.tipo_nomina || 'N/A'}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-600">{pago.periodo}</td>
                     <td className="py-3 px-4 font-mono text-gray-900">
-                      ${(pago.monto || 0).toLocaleString('es-CO')}
+                      ${(pago.monto_base || 0).toLocaleString('es-CO')}
                     </td>
                     <td className="py-3 px-4 font-mono text-green-600">
-                      ${(pago.total_propinas || pago.propina || 0).toLocaleString('es-CO')}
+                      ${(pago.propinas || 0).toLocaleString('es-CO')}
                     </td>
                     <td className="py-3 px-4 font-mono text-purple-600">
-                      ${(pago.total_bonos || 0).toLocaleString('es-CO')}
+                      ${(pago.bonos || 0).toLocaleString('es-CO')}
                     </td>
                     <td className="py-3 px-4 font-mono font-bold text-gray-900">
-                      ${(pago.total_pagar || pago.monto || 0).toLocaleString('es-CO')}
+                      ${(pago.total_pagado || 0).toLocaleString('es-CO')}
                     </td>
                   </tr>
                 ))

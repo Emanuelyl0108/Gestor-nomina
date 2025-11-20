@@ -1,0 +1,13 @@
+name = "gestor-nomina-api"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Configuración de D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "nomina-db"
+database_id = "35d0fe55-5b9e-417b-b45a-178aaa1bf376"
+
+# Variables de entorno (opcional)
+[vars]
+ENVIRONMENT = "production"

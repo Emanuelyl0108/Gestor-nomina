@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, FileText, Download, Eye } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://gestor-nomina-backend.onrender.com/api';
+import { Calculator, FileText } from 'lucide-react';
+import { apiRequest } from '../config/api';
+import API_CONFIG from '../config/api';
 
 export default function CalcularNomina() {
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [calculando, setCalculando] = useState(false);
   const [resultado, setResultado] = useState(null);
-  const [pdfUrl, setPdfUrl] = useState(null);
   
   const [formData, setFormData] = useState({
     empleado_id: '',
@@ -27,8 +25,8 @@ export default function CalcularNomina() {
 
   const cargarEmpleados = async () => {
     try {
-      const response = await axios.get(`${API_URL}/nomina/empleados`);
-      setEmpleados(response.data.filter(e => e.estado === 'activo'));
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.EMPLEADOS);
+      setEmpleados(response.filter(e => e.estado === 'ACTIVO'));
     } catch (error) {
       console.error('Error cargando empleados:', error);
     } finally {
@@ -40,50 +38,25 @@ export default function CalcularNomina() {
     e.preventDefault();
     setCalculando(true);
     setResultado(null);
-    setPdfUrl(null);
 
     try {
-      const response = await axios.post(`${API_URL}/nomina/calcular`, {
-        ...formData,
-        dias_completos: formData.dias_completos ? parseInt(formData.dias_completos) : null,
-        medios_sustitutos: parseFloat(formData.medios_sustitutos),
-        medios_adicionales: parseFloat(formData.medios_adicionales)
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.NOMINA_CALCULAR, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...formData,
+          dias_completos: formData.dias_completos ? parseInt(formData.dias_completos) : null,
+          medios_sustitutos: parseFloat(formData.medios_sustitutos),
+          medios_adicionales: parseFloat(formData.medios_adicionales)
+        }),
       });
       
-      setResultado(response.data);
+      setResultado(response);
     } catch (error) {
       console.error('Error calculando nómina:', error);
       alert('Error al calcular nómina');
     } finally {
       setCalculando(false);
     }
-  };
-
-  const generarPDF = async () => {
-    if (!resultado) return;
-
-    try {
-      const response = await axios.post(
-        `${API_URL}/nomina/generar-pdf`,
-        resultado,
-        { responseType: 'blob' }
-      );
-      
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      setPdfUrl(url);
-    } catch (error) {
-      console.error('Error generando PDF:', error);
-      alert('Error al generar PDF');
-    }
-  };
-
-  const descargarPDF = () => {
-    if (!pdfUrl) return;
-    const link = document.createElement('a');
-    link.href = pdfUrl;
-    link.download = `Nomina_${resultado.empleado_nombre}_${resultado.periodo_inicio}_${resultado.periodo_fin}.pdf`;
-    link.click();
   };
 
   const pagarNomina = async () => {
@@ -97,32 +70,37 @@ export default function CalcularNomina() {
 
     try {
       // Guardar nómina
-      const guardarRes = await axios.post(`${API_URL}/nomina/guardar`, {
-        empleado_id: resultado.empleado_id,
-        tipo_nomina: resultado.tipo_nomina,
-        periodo_inicio: resultado.periodo_inicio,
-        periodo_fin: resultado.periodo_fin,
-        dias_trabajados: resultado.dias_efectivos,
-        sueldo_base: resultado.sueldo_base,
-        monto_base: resultado.monto_base,
-        total_propinas: resultado.total_propinas,
-        total_bonos: resultado.total_bonos,
-        total_descuentos: resultado.total_descuentos,
-        total_movimientos: resultado.total_movimientos,
-        total_pagar: resultado.total_pagar
+      const guardarRes = await apiRequest(API_CONFIG.ENDPOINTS.NOMINA_GUARDAR, {
+        method: 'POST',
+        body: JSON.stringify({
+          empleado_id: resultado.empleado_id,
+          tipo_nomina: resultado.tipo_nomina,
+          periodo_inicio: resultado.periodo_inicio,
+          periodo_fin: resultado.periodo_fin,
+          dias_trabajados: resultado.dias_efectivos,
+          sueldo_base: resultado.sueldo_base,
+          monto_base: resultado.monto_base,
+          total_propinas: resultado.total_propinas,
+          total_bonos: resultado.total_bonos,
+          total_descuentos: resultado.total_descuentos,
+          total_movimientos: resultado.total_movimientos,
+          total_pagar: resultado.total_pagar
+        }),
       });
 
-      const nominaId = guardarRes.data.nomina_id;
+      const nominaId = guardarRes.nomina_id;
 
       // Procesar pago
-      await axios.post(`${API_URL}/nomina/pagar`, {
-        nomina_id: nominaId,
-        metodo_pago: 'Efectivo'
+      await apiRequest(API_CONFIG.ENDPOINTS.NOMINA_PAGAR, {
+        method: 'POST',
+        body: JSON.stringify({
+          nomina_id: nominaId,
+          metodo_pago: 'Efectivo'
+        }),
       });
 
       alert('✅ Pago procesado exitosamente');
       setResultado(null);
-      setPdfUrl(null);
       setFormData({
         empleado_id: '',
         tipo_nomina: 'quincenal',
@@ -263,127 +241,86 @@ export default function CalcularNomina() {
 
       {/* Resultado */}
       {resultado && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Resumen */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <FileText className="text-blue-600" size={24} />
-              <h2 className="text-xl font-bold text-gray-900">Resumen de Nómina</h2>
-            </div>
-
-            <div className="space-y-4">
-              <div className="pb-4 border-b border-gray-200">
-                <h3 className="font-semibold text-lg text-gray-900">{resultado.empleado_nombre}</h3>
-                <p className="text-sm text-gray-500">
-                  {resultado.periodo_inicio} → {resultado.periodo_fin}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Días Trabajados</p>
-                  <p className="text-2xl font-bold text-gray-900">{resultado.dias_efectivos}</p>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Días a Pagar</p>
-                  <p className="text-2xl font-bold text-gray-900">{resultado.dias_a_pagar}</p>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Valor Día</p>
-                  <p className="text-lg font-bold text-gray-900">
-                    ${resultado.valor_dia?.toLocaleString('es-CO')}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between py-2">
-                  <span className="text-gray-600">Monto Base:</span>
-                  <span className="font-mono font-semibold text-gray-900">
-                    ${resultado.monto_base?.toLocaleString('es-CO')}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-green-600">+ Propinas:</span>
-                  <span className="font-mono font-semibold text-green-600">
-                    ${resultado.total_propinas?.toLocaleString('es-CO')}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-green-600">+ Bonos:</span>
-                  <span className="font-mono font-semibold text-green-600">
-                    ${resultado.total_bonos?.toLocaleString('es-CO')}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-red-600">- Descuentos:</span>
-                  <span className="font-mono font-semibold text-red-600">
-                    ${resultado.total_descuentos?.toLocaleString('es-CO')}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-red-600">- Movimientos:</span>
-                  <span className="font-mono font-semibold text-red-600">
-                    ${resultado.total_movimientos?.toLocaleString('es-CO')}
-                  </span>
-                </div>
-                <div className="border-t-2 border-gray-300 pt-3 mt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-gray-900">TOTAL A PAGAR:</span>
-                    <span className="text-2xl font-bold text-green-600">
-                      ${resultado.total_pagar?.toLocaleString('es-CO')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={generarPDF}
-                  className="flex-1 flex items-center justify-center gap-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                >
-                  <Eye size={18} />
-                  Ver PDF
-                </button>
-                <button
-                  onClick={pagarNomina}
-                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                >
-                  💰 Procesar Pago
-                </button>
-              </div>
-            </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText className="text-blue-600" size={24} />
+            <h2 className="text-xl font-bold text-gray-900">Resumen de Nómina</h2>
           </div>
 
-          {/* Visor PDF */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Vista Previa PDF</h2>
-              {pdfUrl && (
-                <button
-                  onClick={descargarPDF}
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  <Download size={18} />
-                  Descargar
-                </button>
-              )}
+          <div className="space-y-4">
+            <div className="pb-4 border-b border-gray-200">
+              <h3 className="font-semibold text-lg text-gray-900">{resultado.empleado_nombre}</h3>
+              <p className="text-sm text-gray-500">
+                {resultado.periodo_inicio} → {resultado.periodo_fin}
+              </p>
             </div>
 
-            {pdfUrl ? (
-              <iframe
-                src={pdfUrl}
-                className="w-full h-[600px] border border-gray-300 rounded-lg"
-                title="Vista previa PDF"
-              />
-            ) : (
-              <div className="h-[600px] border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <FileText className="mx-auto text-gray-400 mb-3" size={48} />
-                  <p className="text-gray-500">Haz clic en "Ver PDF" para generar la vista previa</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">Días Trabajados</p>
+                <p className="text-2xl font-bold text-gray-900">{resultado.dias_efectivos}</p>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">Días a Pagar</p>
+                <p className="text-2xl font-bold text-gray-900">{resultado.dias_a_pagar}</p>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">Valor Día</p>
+                <p className="text-lg font-bold text-gray-900">
+                  ${resultado.valor_dia?.toLocaleString('es-CO')}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between py-2">
+                <span className="text-gray-600">Monto Base:</span>
+                <span className="font-mono font-semibold text-gray-900">
+                  ${resultado.monto_base?.toLocaleString('es-CO')}
+                </span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-green-600">+ Propinas:</span>
+                <span className="font-mono font-semibold text-green-600">
+                  ${resultado.total_propinas?.toLocaleString('es-CO')}
+                </span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-green-600">+ Bonos:</span>
+                <span className="font-mono font-semibold text-green-600">
+                  ${resultado.total_bonos?.toLocaleString('es-CO')}
+                </span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-red-600">- Descuentos:</span>
+                <span className="font-mono font-semibold text-red-600">
+                  ${resultado.total_descuentos?.toLocaleString('es-CO')}
+                </span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-red-600">- Movimientos:</span>
+                <span className="font-mono font-semibold text-red-600">
+                  ${resultado.total_movimientos?.toLocaleString('es-CO')}
+                </span>
+              </div>
+              <div className="border-t-2 border-gray-300 pt-3 mt-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold text-gray-900">TOTAL A PAGAR:</span>
+                  <span className="text-2xl font-bold text-green-600">
+                    ${resultado.total_pagar?.toLocaleString('es-CO')}
+                  </span>
                 </div>
               </div>
-            )}
+            </div>
+
+            <div className="pt-4">
+              <button
+                onClick={pagarNomina}
+                className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              >
+                💰 Procesar Pago
+              </button>
+            </div>
           </div>
         </div>
       )}

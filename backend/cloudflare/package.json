@@ -1,0 +1,20 @@
+{
+  "name": "gestor-nomina-cloudflare",
+  "version": "2.0.0",
+  "description": "API de Gestión de Nómina - Enruanados Gourmet (Cloudflare Workers + D1)",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "db:create": "wrangler d1 create nomina-db",
+    "db:execute": "wrangler d1 execute nomina-db --file=./schema.sql",
+    "db:backup": "wrangler d1 backup create nomina-db"
+  },
+  "keywords": ["cloudflare", "workers", "d1", "api", "nomina"],
+  "author": "Enruanados Gourmet",
+  "license": "ISC",
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

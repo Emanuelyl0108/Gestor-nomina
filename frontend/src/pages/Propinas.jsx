@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Gift, Plus, X } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://gestor-nomina-backend.onrender.com/api';
+import { apiRequest } from '../config/api';
+import API_CONFIG from '../config/api';
 
 export default function Propinas() {
   const [empleados, setEmpleados] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tipoRegistro, setTipoRegistro] = useState('propina'); // 'propina', 'bono', 'descuento'
+  const [tipoRegistro, setTipoRegistro] = useState('propina');
   const [mostrarForm, setMostrarForm] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -24,8 +23,8 @@ export default function Propinas() {
 
   const cargarEmpleados = async () => {
     try {
-      const response = await axios.get(`${API_URL}/nomina/empleados`);
-      setEmpleados(response.data.filter(e => e.estado === 'activo'));
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.EMPLEADOS);
+      setEmpleados(response.filter(e => e.estado === 'ACTIVO'));
     } catch (error) {
       console.error('Error cargando empleados:', error);
     } finally {
@@ -63,12 +62,15 @@ export default function Propinas() {
 
     try {
       const endpoint = tipoRegistro === 'propina' 
-        ? 'propinas' 
+        ? API_CONFIG.ENDPOINTS.PROPINAS
         : tipoRegistro === 'bono' 
-          ? 'bonos' 
-          : 'descuentos';
+          ? API_CONFIG.ENDPOINTS.BONOS
+          : API_CONFIG.ENDPOINTS.DESCUENTOS;
 
-      await axios.post(`${API_URL}/nomina/${endpoint}`, formData);
+      await apiRequest(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(formData),
+      });
       
       alert(`✅ ${tipoRegistro.charAt(0).toUpperCase() + tipoRegistro.slice(1)} registrada correctamente`);
       

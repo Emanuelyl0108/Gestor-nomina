@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Users, DollarSign, TrendingUp, Clock, AlertCircle, CheckCircle } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://gestor-nomina-backend.onrender.com/api';
+import { getApiUrl, apiRequest } from '../config/api';
+import API_CONFIG from '../config/api';
 
 export default function Dashboard() {
   const [empleados, setEmpleados] = useState([]);
   const [movimientosPendientes, setMovimientosPendientes] = useState([]);
   const [nominasPendientes, setNominasPendientes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     cargarDatos();
@@ -16,30 +16,50 @@ export default function Dashboard() {
 
   const cargarDatos = async () => {
     try {
-      const [empRes, movRes, nomRes] = await Promise.all([
-        axios.get(`${API_URL}/nomina/empleados`),
-        axios.get(`${API_URL}/nomina/movimientos/pendientes`),
-        axios.get(`${API_URL}/nomina/pendientes`)
+      setError(null);
+      
+      const [empleadosData, movimientosData, nominasData] = await Promise.all([
+        apiRequest(API_CONFIG.ENDPOINTS.EMPLEADOS),
+        apiRequest(API_CONFIG.ENDPOINTS.MOVIMIENTOS_PENDIENTES),
+        apiRequest(API_CONFIG.ENDPOINTS.NOMINA_PENDIENTES),
       ]);
 
-      setEmpleados(empRes.data);
-      setMovimientosPendientes(movRes.data);
-      setNominasPendientes(nomRes.data);
+      setEmpleados(empleadosData || []);
+      setMovimientosPendientes(movimientosData || []);
+      setNominasPendientes(nominasData || []);
     } catch (error) {
       console.error('Error cargando datos:', error);
+      setError('Error al cargar los datos. Por favor, intenta de nuevo.');
     } finally {
       setLoading(false);
     }
   };
 
-  const empleadosActivos = empleados.filter(e => e.estado === 'activo').length;
-  const totalMovimientosPendientes = movimientosPendientes.reduce((sum, m) => sum + m.monto, 0);
-  const totalNominasPendientes = nominasPendientes.reduce((sum, n) => sum + n.total_pagar, 0);
+  const empleadosActivos = empleados.filter(e => e.estado === 'ACTIVO').length;
+  const totalMovimientosPendientes = movimientosPendientes.reduce((sum, m) => sum + (m.monto || 0), 0);
+  const totalNominasPendientes = nominasPendientes.reduce((sum, n) => sum + (n.total_pagar || 0), 0);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-gray-600 text-xl">Cargando datos...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertCircle className="mx-auto text-red-500 mb-4" size={48} />
+          <div className="text-red-600 text-xl mb-2">{error}</div>
+          <button
+            onClick={cargarDatos}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
       </div>
     );
   }

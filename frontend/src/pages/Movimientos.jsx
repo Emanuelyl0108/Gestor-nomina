@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Plus, Search, Filter } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://gestor-nomina-backend.onrender.com/api';
+import { DollarSign, Plus, Search } from 'lucide-react';
+import { apiRequest } from '../config/api';
+import API_CONFIG from '../config/api';
 
 export default function Movimientos() {
   const [empleados, setEmpleados] = useState([]);
@@ -10,8 +9,8 @@ export default function Movimientos() {
   const [loading, setLoading] = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [busqueda, setBusqueda] = useState('');
-  const [filtroTipo, setFiltroTipo] = useState('todos'); // 'todos', 'adelanto', 'consumo'
-  const [filtroEstado, setFiltroEstado] = useState('todos'); // 'todos', 'pendiente', 'descontado'
+  const [filtroTipo, setFiltroTipo] = useState('todos');
+  const [filtroEstado, setFiltroEstado] = useState('todos');
   
   const [formData, setFormData] = useState({
     empleado_id: '',
@@ -27,11 +26,11 @@ export default function Movimientos() {
   const cargarDatos = async () => {
     try {
       const [empRes, movRes] = await Promise.all([
-        axios.get(`${API_URL}/nomina/empleados`),
-        axios.get(`${API_URL}/nomina/movimientos`)
+        apiRequest(API_CONFIG.ENDPOINTS.EMPLEADOS),
+        apiRequest(API_CONFIG.ENDPOINTS.MOVIMIENTOS)
       ]);
-      setEmpleados(empRes.data.filter(e => e.estado === 'activo'));
-      setMovimientos(movRes.data);
+      setEmpleados(empRes.filter(e => e.estado === 'ACTIVO'));
+      setMovimientos(movRes);
     } catch (error) {
       console.error('Error cargando datos:', error);
     } finally {
@@ -48,7 +47,10 @@ export default function Movimientos() {
     }
 
     try {
-      await axios.post(`${API_URL}/nomina/movimientos`, formData);
+      await apiRequest(API_CONFIG.ENDPOINTS.MOVIMIENTOS, {
+        method: 'POST',
+        body: JSON.stringify(formData),
+      });
       alert('✅ Movimiento registrado correctamente');
       setMostrarForm(false);
       setFormData({ empleado_id: '', tipo: 'adelanto', monto: '', descripcion: '' });

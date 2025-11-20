@@ -1,0 +1,5 @@
+nombre,sueldo_mensual,tipo_pago,fecha_inactivacion,motivo_inactivacion,usuario_inactivacion
+Emanuel,1700000.0,quincenal,2025-08-02,prueba,Sistema
+Amparo Cocinera,1550000.0,quincenal,2025-08-02,Prueba,Sistema
+Prueba,1500000.0,quincenal,2025-08-02,Prueba de sistema,Sistema
+Prueba 2,1600000.0,quincenal,2025-08-13,Era una  prueba,Sistema
