@@ -510,98 +510,63 @@ function Movimientos() {
                           </span>
                         )}
                       </td>
-                      // ============================================
-                      // 🔥 REEMPLÁZALO CON ESTE CÓDIGO:
-                      // ============================================
-                      
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {/* 🔍 DEBUG: Ver datos del movimiento en consola */}
-                        {console.log('🔍 DEBUG Movimiento:', {
-                          id: mov.id,
-                          empleado: mov.empleado_nombre,
-                          descontado: mov.descontado,
-                          descontar_siguiente: mov.descontar_siguiente_periodo,
-                          descripcion: mov.descripcion,
-                          esFudo: esFudo(mov.descripcion)
-                        })}
-                        
-                        {/* 🔥 MOSTRAR SIEMPRE (para debug) */}
-                        <div className="flex space-x-2 items-center">
-                          {/* Botón Info - SIEMPRE VISIBLE */}
-                          <button
-                            onClick={() => {
-                              console.log('👆 Click en Info:', mov);
-                              verDetalle(mov);
-                            }}
-                            className="text-purple-600 hover:text-purple-900 bg-purple-50 px-2 py-1 rounded"
-                            title="Ver detalle"
-                          >
-                            <Info size={18} />
-                          </button>
-                          
-                          {/* Botones editar/eliminar solo si NO es FUDO Y NO está descontado */}
-                          {!esFudo(mov.descripcion) && !mov.descontado && (
-                            <>
-                              <button
-                                onClick={() => abrirFormularioEditar(mov)}
-                                className="text-blue-600 hover:text-blue-900"
-                                title="Editar"
-                              >
-                                <Edit size={18} />
-                              </button>
-                              <button
-                                onClick={() => eliminarMovimiento(mov.id, mov.descripcion)}
-                                className="text-red-600 hover:text-red-900"
-                                title="Eliminar"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            </>
-                          )}
-                          
-                          {/* Botones postergar/reactivar - SIEMPRE VISIBLE si NO está descontado */}
-                          {!mov.descontado && (
-                            <>
-                              {!mov.descontar_siguiente_periodo ? (
+                        {!mov.descontado && (
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => verDetalle(mov)}
+                              className="text-purple-600 hover:text-purple-900"
+                              title="Ver detalle"
+                            >
+                              <Info size={18} />
+                            </button>
+                            
+                            {!esFudo(mov.descripcion) && (
+                              <>
                                 <button
-                                  onClick={() => {
-                                    console.log('👆 Click en Postergar:', mov);
-                                    postergarMovimiento(mov.id, mov.empleado_nombre);
-                                  }}
-                                  className="text-orange-600 hover:text-orange-900 bg-orange-50 px-2 py-1 rounded text-lg font-bold"
-                                  title="Postergar a siguiente periodo"
+                                  onClick={() => abrirFormularioEditar(mov)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                  title="Editar"
                                 >
-                                  ⏭️
+                                  <Edit size={18} />
                                 </button>
-                              ) : (
                                 <button
-                                  onClick={() => {
-                                    console.log('👆 Click en Reactivar:', mov);
-                                    reactivarMovimiento(mov.id, mov.empleado_nombre);
-                                  }}
-                                  className="text-green-600 hover:text-green-900 bg-green-50 px-2 py-1 rounded text-lg font-bold"
-                                  title="Reactivar para este periodo"
+                                  onClick={() => eliminarMovimiento(mov.id, mov.descripcion)}
+                                  className="text-red-600 hover:text-red-900"
+                                  title="Eliminar"
                                 >
-                                  ↩️
+                                  <Trash2 size={18} />
                                 </button>
-                              )}
-                            </>
-                          )}
-                          
-                          {/* Indicador FUDO */}
-                          {esFudo(mov.descripcion) && (
-                            <span className="text-xs text-blue-600 font-semibold bg-blue-50 px-2 py-1 rounded">
-                              🍴 Auto-FUDO
-                            </span>
-                          )}
-                          
-                          {/* Estado si está descontado */}
-                          {mov.descontado && (
-                            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
-                              ✓ Ya descontado
-                            </span>
-                          )}
-                        </div>
+                              </>
+                            )}
+                            
+                            {/* 🔥 BOTONES DE POSTERGAR/REACTIVAR */}
+                            {!mov.descontar_siguiente_periodo ? (
+                              <button
+                                onClick={() => postergarMovimiento(mov.id, mov.empleado_nombre)}
+                                className="text-orange-600 hover:text-orange-900 text-lg"
+                                title="Postergar a siguiente periodo"
+                              >
+                                ⏭️
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => reactivarMovimiento(mov.id, mov.empleado_nombre)}
+                                className="text-green-600 hover:text-green-900 text-lg"
+                                title="Reactivar para este periodo"
+                              >
+                                ↩️
+                              </button>
+                            )}
+                            
+                            {esFudo(mov.descripcion) && (
+                              <span className="text-xs text-gray-400 italic">Auto-FUDO</span>
+                            )}
+                          </div>
+                        )}
+                        {mov.descontado && (
+                          <span className="text-xs text-gray-400">Ya descontado</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -732,4 +697,3 @@ function Movimientos() {
 }
 
 export default Movimientos;
-// Debug update
