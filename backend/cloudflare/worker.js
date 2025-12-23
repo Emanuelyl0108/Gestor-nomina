@@ -1723,14 +1723,75 @@ async function handleRequest(request, env) {
       
       try {
         // Validar campos requeridos
-        if (!body.empleado_id || !body.dias_trabajados) {
+        if (!body.empleado_id || !body.periodo_inicio || !body.periodo_fin) {
           return jsonResponse({ 
-            error: 'Campos requeridos: empleado_id, dias_trabajados' 
+            error: 'Campos requeridos: empleado_id, periodo_inicio, periodo_fin' 
           }, 400);
         }
         
-        // Obtener empleado
-        const empleado = await db.prepare(
+        // 🔥 LLAMAR A WORKER DE ASISTENCIA PARA CALCULAR TURNOS
+        console.log('🔄 Llamando a worker-asistencia para calcular turnos...');
+        console.log('📤 URL:', 'https://asistencia-backend.emarodri834.workers.dev/api/nomina/calcular');
+        console.log('📤 Body:', JSON.stringify({
+          empleado_id: body.empleado_id,
+          periodo_inicio: body.periodo_inicio,
+          periodo_fin: body.periodo_fin
+        }));
+
+        const urlAsistencia = 'https://asistencia-backend.emarodri834.workers.dev/api/nomina/calcular';
+        
+        let responseAsistencia;
+        try {
+          responseAsistencia = await fetch(urlAsistencia, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              empleado_id: body.empleado_id,
+              periodo_inicio: body.periodo_inicio,
+              periodo_fin: body.periodo_fin
+            })
+          });
+          
+          console.log('📥 Response status:', responseAsistencia.status);
+          console.log('📥 Response ok:', responseAsistencia.ok);
+          
+        } catch (fetchError) {
+          console.error('❌ Error en fetch:', fetchError);
+          return jsonResponse({ 
+            error: 'No se pudo conectar con el worker de asistencia',
+            detalle: fetchError.message,
+            stack: fetchError.stack
+          }, 500);
+        }
+        
+        if (!responseAsistencia.ok) {
+          const errorText = await responseAsistencia.text();
+          console.error('❌ Response error:', errorText);
+          return jsonResponse({ 
+            error: 'Error obteniendo datos de asistencia',
+            detalle: errorText,
+            status: responseAsistencia.status
+          }, 500);
+        }
+        
+        let datosAsistencia;
+        try {
+          datosAsistencia = await responseAsistencia.json();
+          console.log('✅ Datos de asistencia obtenidos:', JSON.stringify(datosAsistencia));
+        } catch (jsonError) {
+          console.error('❌ Error parseando JSON:', jsonError);
+          const rawText = await responseAsistencia.text();
+          return jsonResponse({ 
+            error: 'Error parseando respuesta de asistencia',
+            detalle: rawText 
+          }, 500);
+        }
+        
+        // Obtener empleado - 🔥 CORREGIDO: env.DB en lugar de db
+        const empleado = await env.DB.prepare(
           'SELECT * FROM empleados WHERE id = ?'
         ).bind(body.empleado_id).first();
         
@@ -1738,23 +1799,17 @@ async function handleRequest(request, env) {
           return jsonResponse({ error: 'Empleado no encontrado' }, 404);
         }
         
-        // Validar que el empleado tenga sueldo definido
-        const sueldo_mensual = empleado.sueldo_mensual;
-    
-        if (!sueldo_mensual || sueldo_mensual <= 0) {
+        // Validar que tenga sueldo
+        if (!empleado.sueldo_mensual || empleado.sueldo_mensual <= 0) {
           return jsonResponse({ 
-            error: `El empleado ${empleado.nombre} no tiene sueldo mensual definido. Por favor actualice primero el sueldo del empleado.`,
+            error: `El empleado ${empleado.nombre} no tiene sueldo mensual definido`,
             empleado_id: empleado.id,
-            sueldo_actual: sueldo_mensual || null,
+            sueldo_actual: empleado.sueldo_mensual || null,
           }, 400);
         }
         
-        // Periodos (del body o calcular automáticamente)
-        const periodo_inicio = body.periodo_inicio || formatDate(nowColombia());
-        const periodo_fin = body.periodo_fin || formatDate(nowColombia());
-        
-        // Obtener movimientos pendientes DENTRO del periodo de la nómina
-        const movimientosPeriodo = await db.prepare(`
+        // Obtener movimientos pendientes DENTRO del periodo - 🔥 CORREGIDO
+        const movimientosPeriodo = await env.DB.prepare(`
           SELECT *
           FROM movimientos
           WHERE empleado_id = ?
@@ -1763,39 +1818,24 @@ async function handleRequest(request, env) {
             AND fecha >= ?
             AND fecha <= ?
           ORDER BY fecha ASC, id ASC
-        `).bind(body.empleado_id, periodo_inicio, periodo_fin).all();
+        `).bind(body.empleado_id, body.periodo_inicio, body.periodo_fin).all();
         
         const total_movimientos_periodo = movimientosPeriodo.results.reduce((sum, m) => sum + m.monto, 0);
         
-        // Determinar tipo de nómina (del body o del empleado)
-        const tipoNomina = body.tipo_nomina || empleado.tipo_pago || 'quincenal';
+        // Usar datos de asistencia
+        const diasTrabajados = datosAsistencia.dias_trabajados;
+        const total_propinas = body.total_propinas || datosAsistencia.total_propinas || 0;
+        const total_bonos = body.total_bonos || datosAsistencia.total_bonos || 0;
+        const total_descuentos = body.total_descuentos || datosAsistencia.total_descuentos || 0;
         
-        // Calcular monto base según días trabajados y tipo de nómina
-        let monto_base = 0;
-        
-        if (tipoNomina === 'quincenal') {
-          monto_base = (sueldo_mensual / 30) * body.dias_trabajados;
-        } else if (tipoNomina === 'mensual') {
-          monto_base = (sueldo_mensual / 30) * body.dias_trabajados;
-        }
-        
-        // Redondear a entero
-        monto_base = Math.round(monto_base);
-        
-        // Obtener otros valores del body (opcionales)
-        const total_propinas = body.total_propinas || 0;
-        const total_bonos = body.total_bonos || 0;
-        const total_descuentos = body.total_descuentos || 0;
-        
-        // Calcular totales correctamente
-        const total_bruto = monto_base + total_propinas + total_bonos; 
-        const total_descuentos_generales = total_descuentos; // Descuentos que NO son consumos/adelantos
-        const subtotal = total_bruto - total_descuentos_generales;
+        // Calcular totales
+        const monto_base = datosAsistencia.total_sueldo_turnos; // Ya incluye descansos y extras
+        const total_bruto = monto_base + total_propinas + total_bonos;
+        const subtotal = total_bruto - total_descuentos;
         const total_pagar = subtotal - total_movimientos_periodo;
-
-
-        // Crear nómina
-        const result = await db.prepare(
+        
+        // Crear nómina - 🔥 CORREGIDO
+        const result = await env.DB.prepare(
           `INSERT INTO nominas (
             empleado_id, tipo_nomina, periodo_inicio, periodo_fin, 
             dias_trabajados, sueldo_base, monto_base, total_propinas,
@@ -1804,26 +1844,26 @@ async function handleRequest(request, env) {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           body.empleado_id,
-          tipoNomina,
-          periodo_inicio,
-          periodo_fin,
-          body.dias_trabajados,
-          sueldo_mensual,
+          empleado.tipo_pago || 'quincenal',
+          body.periodo_inicio,
+          body.periodo_fin,
+          diasTrabajados,
+          empleado.sueldo_mensual,
           monto_base,
           total_propinas,
           total_bonos,
           total_descuentos,
           total_movimientos_periodo,
           total_pagar,
-          0, // No pagada
+          0,
           formatDateTime(nowColombia())
         ).run();
         
         const nominaId = result.meta.last_row_id;
         
-        // PRE-CONFIGURAR movimientos del periodo como "pagar_completo"
+        // Pre-configurar movimientos del periodo como "pagar_completo" - 🔥 CORREGIDO
         for (const mov of movimientosPeriodo.results) {
-          await db.prepare(
+          await env.DB.prepare(
             `INSERT INTO nomina_movimientos (nomina_id, movimiento_id, tipo_descuento, monto_a_descontar, created_at)
              VALUES (?, ?, ?, ?, ?)`
           ).bind(
@@ -1840,12 +1880,20 @@ async function handleRequest(request, env) {
           nomina_id: nominaId,
           empleado: empleado.nombre,
           periodo: {
-            inicio: periodo_inicio,
-            fin: periodo_fin,
+            inicio: body.periodo_inicio,
+            fin: body.periodo_fin,
+          },
+          datos_asistencia: {
+            turnos_completos: datosAsistencia.turnos_completos,
+            medios_turnos: datosAsistencia.medios_turnos,
+            dias_trabajados: datosAsistencia.dias_trabajados,
+            dias_descanso_cumplidos: datosAsistencia.dias_descanso_cumplidos,
+            dias_descanso_trabajados: datosAsistencia.dias_descanso_trabajados,
+            total_turnos_a_pagar: datosAsistencia.total_turnos_a_pagar,
+            horas_totales: datosAsistencia.horas_totales,
           },
           calculo: {
-            sueldo_mensual: sueldo_mensual,
-            dias_trabajados: body.dias_trabajados,
+            sueldo_mensual: empleado.sueldo_mensual,
             monto_base: monto_base,
             total_propinas: total_propinas,
             total_bonos: total_bonos,
@@ -1865,12 +1913,15 @@ async function handleRequest(request, env) {
             },
             total_a_pagar: total_pagar,
           },
-          nota: 'Los movimientos del periodo fueron pre-configurados para pago completo. Use /nominas/{id}/configurar-descuentos para modificar.',
+          nota: 'Nómina creada automáticamente con datos de asistencia. Los movimientos del periodo fueron pre-configurados para pago completo.',
         }, 201);
         
       } catch (error) {
         console.error('Error creando nómina:', error);
-        return jsonResponse({ error: error.message }, 500);
+        return jsonResponse({ 
+          error: error.message,
+          stack: error.stack 
+        }, 500);
       }
     }
     
