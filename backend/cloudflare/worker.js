@@ -466,6 +466,7 @@ function parsearComentarioMovimientoCaja(comentario) {
 /**
  * Validar que el empleado existe y que el nombre coincide (case-insensitive)
  */
+
 async function validarEmpleadoMovimiento(db, empleadoId, primerNombre) {
   const empleado = await db.prepare(
     'SELECT id, nombre FROM empleados WHERE id = ?'
@@ -479,7 +480,18 @@ async function validarEmpleadoMovimiento(db, empleadoId, primerNombre) {
     };
   }
   
-  // Extraer primer nombre del empleado en BD
+  // 🔥 Si NO viene primer nombre (formato nuevo E2025-37), solo validar que existe
+  if (!primerNombre) {
+    return {
+      valido: true,
+      empleado_id: empleado.id,
+      nombre_completo: empleado.nombre,
+      nombre_coincide: true, // No aplica validación de nombre
+      advertencia: null,
+    };
+  }
+  
+  // Validación de nombre (formato antiguo)
   const nombreCompleto = empleado.nombre;
   const primerNombreBD = nombreCompleto.split(' ')[0].toLowerCase();
   const primerNombreComentario = primerNombre.toLowerCase();
@@ -1157,6 +1169,27 @@ async function handleRequest(request, env) {
         detalles: resultados,
       });
     }
+
+    // Forzar sincronización manual
+    if (path === '/api/nomina/fudo/sincronizar-ahora' && method === 'POST') {
+      try {
+        console.log('🔄 Sincronización manual forzada');
+        const resultado = await ejecutarSincronizacionAutomatica(env);
+        
+        return jsonResponse({
+          success: true,
+          mensaje: 'Sincronización completada',
+          ...resultado,
+        });
+        
+      } catch (error) {
+        console.error('❌ Error en sincronización manual:', error);
+        return jsonResponse({ 
+          success: false,
+          error: error.message 
+        }, 500);
+      }
+    }
     
     // ==================== MOVIMIENTOS ====================
     
@@ -1731,66 +1764,67 @@ async function handleRequest(request, env) {
         
         // 🔥 LLAMAR A WORKER DE ASISTENCIA PARA CALCULAR TURNOS
         console.log('🔄 Llamando a worker-asistencia para calcular turnos...');
-        console.log('📤 URL:', 'https://asistencia-backend.emarodri834.workers.dev/api/nomina/calcular');
-        console.log('📤 Body:', JSON.stringify({
+        
+        const bodyAsistencia = {
           empleado_id: body.empleado_id,
           periodo_inicio: body.periodo_inicio,
           periodo_fin: body.periodo_fin
-        }));
-
-        const urlAsistencia = 'https://asistencia-backend.emarodri834.workers.dev/api/nomina/calcular';
+        };
         
-        let responseAsistencia;
+        console.log('📤 Body:', JSON.stringify(bodyAsistencia));
+    
+        let datosAsistencia;
+        
         try {
-          responseAsistencia = await fetch(urlAsistencia, {
+          // Crear request para el worker de asistencia
+          const asistenciaRequest = new Request('https://dummy/api/nomina/calcular', {
             method: 'POST',
             headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-              empleado_id: body.empleado_id,
-              periodo_inicio: body.periodo_inicio,
-              periodo_fin: body.periodo_fin
-            })
+            body: JSON.stringify(bodyAsistencia)
           });
           
+          // Llamar al worker usando el binding
+          const responseAsistencia = await env.ASISTENCIA.fetch(asistenciaRequest);
+      
           console.log('📥 Response status:', responseAsistencia.status);
           console.log('📥 Response ok:', responseAsistencia.ok);
+      
+          const responseText = await responseAsistencia.text();
+          console.log('📥 Response text:', responseText.substring(0, 200));
+
+      
+          // Intentar parsear JSON
+          if (!responseAsistencia.ok) {
+            console.error('❌ Worker-asistencia devolvió error');
+            return jsonResponse({ 
+              error: 'Error obteniendo datos de asistencia',
+              status: responseAsistencia.status,
+              detalle: responseText
+            }, 500);
+          }
+          
+          try {
+            datosAsistencia = JSON.parse(responseText);
+            console.log('✅ Datos de asistencia parseados correctamente');
+          } catch (jsonError) {
+            console.error('❌ Error parseando JSON:', jsonError.message);
+            return jsonResponse({ 
+              error: 'Error parseando respuesta de asistencia',
+              detalle: responseText 
+            }, 500);
+          }
           
         } catch (fetchError) {
           console.error('❌ Error en fetch:', fetchError);
           return jsonResponse({ 
             error: 'No se pudo conectar con el worker de asistencia',
-            detalle: fetchError.message,
-            stack: fetchError.stack
+            detalle: fetchError.message
           }, 500);
         }
         
-        if (!responseAsistencia.ok) {
-          const errorText = await responseAsistencia.text();
-          console.error('❌ Response error:', errorText);
-          return jsonResponse({ 
-            error: 'Error obteniendo datos de asistencia',
-            detalle: errorText,
-            status: responseAsistencia.status
-          }, 500);
-        }
-        
-        let datosAsistencia;
-        try {
-          datosAsistencia = await responseAsistencia.json();
-          console.log('✅ Datos de asistencia obtenidos:', JSON.stringify(datosAsistencia));
-        } catch (jsonError) {
-          console.error('❌ Error parseando JSON:', jsonError);
-          const rawText = await responseAsistencia.text();
-          return jsonResponse({ 
-            error: 'Error parseando respuesta de asistencia',
-            detalle: rawText 
-          }, 500);
-        }
-        
-        // Obtener empleado - 🔥 CORREGIDO: env.DB en lugar de db
+        // Obtener empleado
         const empleado = await env.DB.prepare(
           'SELECT * FROM empleados WHERE id = ?'
         ).bind(body.empleado_id).first();
@@ -1808,7 +1842,7 @@ async function handleRequest(request, env) {
           }, 400);
         }
         
-        // Obtener movimientos pendientes DENTRO del periodo - 🔥 CORREGIDO
+        // Obtener movimientos pendientes DENTRO del periodo
         const movimientosPeriodo = await env.DB.prepare(`
           SELECT *
           FROM movimientos
@@ -1834,7 +1868,7 @@ async function handleRequest(request, env) {
         const subtotal = total_bruto - total_descuentos;
         const total_pagar = subtotal - total_movimientos_periodo;
         
-        // Crear nómina - 🔥 CORREGIDO
+        // Crear nómina
         const result = await env.DB.prepare(
           `INSERT INTO nominas (
             empleado_id, tipo_nomina, periodo_inicio, periodo_fin, 
@@ -1861,7 +1895,7 @@ async function handleRequest(request, env) {
         
         const nominaId = result.meta.last_row_id;
         
-        // Pre-configurar movimientos del periodo como "pagar_completo" - 🔥 CORREGIDO
+        // Pre-configurar movimientos del periodo como "pagar_completo"
         for (const mov of movimientosPeriodo.results) {
           await env.DB.prepare(
             `INSERT INTO nomina_movimientos (nomina_id, movimiento_id, tipo_descuento, monto_a_descontar, created_at)
@@ -3550,8 +3584,186 @@ async function handleRequest(request, env) {
   }
 }
 
+// ==================== CRON: SINCRONIZACIÓN AUTOMÁTICA ====================
+
+/**
+ * Sincronización automática de movimientos FUDO
+ * Se ejecuta según el schedule configurado en wrangler.toml
+ */
+
+async function ejecutarSincronizacionAutomatica(env) {
+  console.log('⏰ CRON: Iniciando sincronización automática de FUDO');
+  
+  const resultados = {
+    timestamp: formatDateTime(nowColombia()),
+    empleados_procesados: 0,
+    consumos_nuevos: 0,
+    adelantos_nuevos: 0,
+    errores: [],
+  };
+  
+  try {
+    // Obtener empleados activos con customer FUDO
+    const empleados = await env.DB.prepare(
+      "SELECT id, nombre, fudo_customer_id FROM empleados WHERE estado = 'ACTIVO' AND fudo_customer_id IS NOT NULL"
+    ).all();
+    
+    console.log(`👥 Total empleados activos: ${empleados.results.length}`);
+    
+    // 1. SINCRONIZAR CONSUMOS (cuenta corriente)
+    for (const empleado of empleados.results) {
+      try {
+        const resultado = await sincronizarConsumosFudo(env, env.DB, empleado.id);
+        
+        if (resultado.success) {
+          resultados.empleados_procesados++;
+          resultados.consumos_nuevos += resultado.nuevos_consumos || 0;
+          resultados.consumos_nuevos += resultado.nuevos_abonos || 0;
+          
+          if (resultado.nuevos_consumos > 0 || resultado.nuevos_abonos > 0) {
+            console.log(`✅ ${empleado.nombre}: ${resultado.nuevos_consumos} consumos, ${resultado.nuevos_abonos} abonos`);
+          }
+        } else {
+          resultados.errores.push({
+            empleado_id: empleado.id,
+            empleado: empleado.nombre,
+            tipo: 'consumos',
+            error: resultado.error,
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Error sincronizando consumos de ${empleado.nombre}:`, error);
+        resultados.errores.push({
+          empleado_id: empleado.id,
+          empleado: empleado.nombre,
+          tipo: 'consumos',
+          error: error.message,
+        });
+      }
+    }
+    
+    // 2. SINCRONIZAR ADELANTOS (movimientos de caja de últimos 7 días)
+    try {
+      const hace7dias = new Date();
+      hace7dias.setDate(hace7dias.getDate() - 7);
+      hace7dias.setHours(5, 0, 0, 0);
+      
+      const hoy = new Date();
+      hoy.setHours(5, 0, 0, 0);
+      hoy.setDate(hoy.getDate() + 1);
+      
+      const t1 = hace7dias.toISOString().replace(/\.\d{3}Z$/, '.000Z');
+      const t2 = hoy.toISOString().replace(/\.\d{3}Z$/, '.000Z');
+      
+      console.log(`📅 Sincronizando adelantos desde ${hace7dias.toISOString().split('T')[0]}`);
+      
+      const token = await getFudoToken(env);
+      const url = `https://api.fu.do/cash_movements?t1=${t1}&t2=${t2}`;
+      
+      const fetchResponse = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (fetchResponse.ok) {
+        const response = await fetchResponse.json();
+        const movimientosArray = Object.values(response || {});
+        const adelantos = movimientosArray.filter(m => m.type === 'outcome');
+        
+        console.log(`📊 Encontrados ${adelantos.length} movimientos de caja`);
+        
+        for (const mov of adelantos) {
+          const parseResult = parsearComentarioMovimientoCaja(mov.comment);
+          
+          if (!parseResult.success) {
+            continue;
+          }
+          
+          // Validar empleado
+          const validacion = await validarEmpleadoMovimiento(
+            env.DB,
+            parseResult.empleado_id,
+            parseResult.primer_nombre
+          );
+          
+          if (!validacion.valido) {
+            continue;
+          }
+          
+          // Verificar si ya existe
+          const existe = await env.DB.prepare(
+            'SELECT id FROM movimientos WHERE fudo_payment_id = ?'
+          ).bind(mov.id.toString()).first();
+          
+          if (existe) {
+            continue;
+          }
+          
+          // Crear movimiento
+          const descripcion = `Adelanto de caja${parseResult.detalle ? ': ' + parseResult.detalle : ''}`;
+          
+          await env.DB.prepare(
+            `INSERT INTO movimientos (
+              empleado_id, fecha, tipo, monto, descripcion,
+              descontado, fudo_payment_id, fudo_synced_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+          ).bind(
+            validacion.empleado_id,
+            mov.createdAt?.split('T')[0] || formatDate(nowColombia()),
+            'adelanto',
+            mov.amount,
+            descripcion,
+            0,
+            mov.id.toString(),
+            formatDateTime(nowColombia())
+          ).run();
+          
+          resultados.adelantos_nuevos++;
+          console.log(`✅ Adelanto creado: ${validacion.nombre_completo} - $${mov.amount}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error sincronizando adelantos:', error);
+      resultados.errores.push({
+        tipo: 'adelantos',
+        error: error.message,
+      });
+    }
+    
+    console.log('✅ CRON: Sincronización completada');
+    console.log(`📊 Resumen: ${resultados.empleados_procesados} empleados, ${resultados.consumos_nuevos} consumos, ${resultados.adelantos_nuevos} adelantos`);
+    
+    return resultados;
+    
+  } catch (error) {
+    console.error('❌ CRON: Error en sincronización automática:', error);
+    resultados.errores.push({
+      tipo: 'general',
+      error: error.message,
+    });
+    return resultados;
+  }
+}
 export default {
   async fetch(request, env, ctx) {
     return handleRequest(request, env);
+  },
+  
+  // 🔥 CRON TRIGGER
+  async scheduled(event, env, ctx) {
+    console.log('⏰ Cron trigger ejecutado:', new Date(event.scheduledTime).toISOString());
+    
+    try {
+      const resultado = await ejecutarSincronizacionAutomatica(env);
+      
+      console.log('✅ Sincronización automática completada');
+      console.log(JSON.stringify(resultado, null, 2));
+      
+    } catch (error) {
+      console.error('❌ Error en cron:', error);
+    }
   },
 };
