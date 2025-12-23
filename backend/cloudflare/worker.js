@@ -366,14 +366,7 @@ async function obtenerVentasCuentaCorriente(env, fudoCustomerId, fechaDesde = nu
 
 /**
  * Parsear comentario de movimiento de caja para extraer empleado
- * Formato esperado: "[ID] [PrimerNombre] [detalle opcional]"
- * Ejemplo: "19 Kevin adelanto emergencia"
- */
- 
-/**
- * Parsear comentario de movimiento de caja para extraer empleado
- * Formato: "id:19 Kevin detalle opcional"
- * Tolerante a mayúsculas/minúsculas, espacios extra, comas y puntos
+ * SOPORTA MÚLTIPLES FORMATOS (nuevo + antiguos para compatibilidad)
  */
 function parsearComentarioMovimientoCaja(comentario) {
   if (!comentario || typeof comentario !== 'string') {
@@ -382,17 +375,37 @@ function parsearComentarioMovimientoCaja(comentario) {
   
   const comentarioTrim = comentario.trim();
   
-  // FORMATO NUEVO (preferido): "id:19 Kevin detalle"
-  // Más flexible: acepta ID/Id/id, espacios, mayúsculas/minúsculas
-  // Regex: id (case insensitive) : número whitespace nombre (palabra) resto opcional
-  const matchNuevoFormato = comentarioTrim.match(/^id\s*:\s*(\d+)\s+(\w+)/i);
+  // ========== FORMATO NUEVO (RECOMENDADO): "E2025-19" ==========
+  // Puede estar en cualquier parte del comentario
+  // Ejemplos: "E2025-19 Adelanto emergencia", "Adelanto E2025-19", etc.
+  const regexNuevo = /E(\d{4})-(\d+)/i;
+  const matchNuevo = comentarioTrim.match(regexNuevo);
   
-  if (matchNuevoFormato) {
-    const empleadoId = parseInt(matchNuevoFormato[1]);
-    const primerNombre = matchNuevoFormato[2];
+  if (matchNuevo) {
+    const año = parseInt(matchNuevo[1]);
+    const empleadoId = parseInt(matchNuevo[2]);
     
-    // Extraer el detalle (todo después del nombre)
-    // Quitar el "id:XX NombreEmpleado" del inicio
+    // Extraer detalle (todo menos el código)
+    const detalle = comentarioTrim.replace(/E\d{4}-\d+/i, '').trim() || null;
+    
+    return {
+      success: true,
+      empleado_id: empleadoId,
+      año: año,
+      detalle: detalle,
+      comentario_original: comentario,
+      formato: 'codigo_año'
+    };
+  }
+  
+  // ========== FORMATO ANTIGUO 1: "id:19 Kevin detalle" ==========
+  const matchIdColon = comentarioTrim.match(/^id\s*:\s*(\d+)\s+(\w+)/i);
+  
+  if (matchIdColon) {
+    const empleadoId = parseInt(matchIdColon[1]);
+    const primerNombre = matchIdColon[2];
+    
+    // Extraer el detalle
     const patron = new RegExp(`^id\\s*:\\s*${empleadoId}\\s+${primerNombre}[,.]?\\s*`, 'i');
     const detalle = comentarioTrim.replace(patron, '').trim() || null;
     
@@ -402,57 +415,54 @@ function parsearComentarioMovimientoCaja(comentario) {
       primer_nombre: primerNombre,
       detalle: detalle,
       comentario_original: comentario,
-      formato: 'nuevo'
+      formato: 'antiguo_id_colon',
+      advertencia: `Se recomienda usar formato nuevo: E${nowColombia().getFullYear()}-${empleadoId}`
     };
   }
   
-  // FORMATO ANTIGUO (legacy): "19 Kevin detalle"
+  // ========== FORMATO ANTIGUO 2: "19 Kevin detalle" ==========
   // SOLO si el ID está al INICIO y es menor a 1000 (para evitar falsos positivos)
-  const matchAntiguoFormato = comentarioTrim.match(/^(\d{1,3})\s+(\w+)/);
+  const matchNumerico = comentarioTrim.match(/^(\d{1,3})\s+(\w+)/);
   
-  if (matchAntiguoFormato) {
-    const empleadoId = parseInt(matchAntiguoFormato[1]);
+  if (matchNumerico) {
+    const empleadoId = parseInt(matchNumerico[1]);
     
     // Validar que el ID sea razonable (1-999)
-    if (empleadoId < 1 || empleadoId > 999) {
-      return { 
-        success: false, 
-        error: 'ID numérico fuera de rango válido (1-999)' 
-      };
-    }
-    
-    const primerNombre = matchAntiguoFormato[2];
-    
-    // Evitar palabras que claramente NO son nombres
-    const palabrasInvalidas = ['cuotas', 'cajas', 'libras', 'latas', 'bolsas', 'unidades', 'kilos', 'pago', 'nomina', 'domicilio'];
-    if (palabrasInvalidas.includes(primerNombre.toLowerCase())) {
+    if (empleadoId >= 1 && empleadoId <= 999) {
+      const primerNombre = matchNumerico[2];
+      
+      // Evitar palabras que claramente NO son nombres
+      const palabrasInvalidas = ['cuotas', 'cajas', 'libras', 'latas', 'bolsas', 'unidades', 'kilos', 'pago', 'nomina', 'domicilio'];
+      if (palabrasInvalidas.includes(primerNombre.toLowerCase())) {
+        return {
+          success: false,
+          error: `"${primerNombre}" no es un nombre válido. Use formato: E${nowColombia().getFullYear()}-${empleadoId} detalle`
+        };
+      }
+      
+      // Extraer detalle
+      const patron = new RegExp(`^${empleadoId}\\s+${primerNombre}[,.]?\\s*`, 'i');
+      const detalle = comentarioTrim.replace(patron, '').trim() || null;
+      
       return {
-        success: false,
-        error: `"${primerNombre}" no es un nombre válido. Use formato: id:${empleadoId} NombreEmpleado`
+        success: true,
+        empleado_id: empleadoId,
+        primer_nombre: primerNombre,
+        detalle: detalle,
+        comentario_original: comentario,
+        formato: 'antiguo_numerico',
+        advertencia: `Se recomienda usar formato nuevo: E${nowColombia().getFullYear()}-${empleadoId}`
       };
     }
-    
-    // Extraer detalle
-    const patron = new RegExp(`^${empleadoId}\\s+${primerNombre}[,.]?\\s*`, 'i');
-    const detalle = comentarioTrim.replace(patron, '').trim() || null;
-    
-    return {
-      success: true,
-      empleado_id: empleadoId,
-      primer_nombre: primerNombre,
-      detalle: detalle,
-      comentario_original: comentario,
-      formato: 'antiguo',
-      advertencia: 'Se recomienda usar formato nuevo: id:' + empleadoId + ' ' + primerNombre
-    };
   }
   
+  // ========== NO SE PUDO PARSEAR ==========
+  const añoActual = nowColombia().getFullYear();
   return { 
     success: false, 
-    error: 'Formato inválido. Use: id:19 Kevin detalle (o formato antiguo: 19 Kevin detalle)' 
+    error: `Formato inválido. Use código: E${añoActual}-{ID} detalle (ejemplo: E${añoActual}-19 Adelanto)` 
   };
 }
-
 /**
  * Validar que el empleado existe y que el nombre coincide (case-insensitive)
  */
@@ -1366,6 +1376,79 @@ async function handleRequest(request, env) {
         return jsonResponse({ error: error.message }, 500);
       }
     }
+    
+    // ==================== 1. GENERAR CÓDIGO PARA MOVIMIENTO ====================
+
+    // Generar código único para adelanto/movimiento de caja
+    if (path === '/api/nomina/movimientos/generar-codigo' && method === 'POST') {
+      const body = await request.json();
+      
+      try {
+        if (!body.empleado_id) {
+          return jsonResponse({ error: 'empleado_id requerido' }, 400);
+        }
+        
+        const empleado = await db.prepare(
+          'SELECT id, nombre FROM empleados WHERE id = ?'
+        ).bind(body.empleado_id).first();
+        
+        if (!empleado) {
+          return jsonResponse({ error: 'Empleado no encontrado' }, 404);
+        }
+        
+        // Generar código: E2025-{ID}
+        const año = nowColombia().getFullYear();
+        const codigo = `E${año}-${empleado.id}`;
+        
+        return jsonResponse({
+          success: true,
+          empleado: {
+            id: empleado.id,
+            nombre: empleado.nombre,
+          },
+          codigo: codigo,
+          ejemplo_uso: `${codigo} Adelanto emergencia`,
+          instrucciones: 'Copie el código y úselo en FUDO seguido del detalle del adelanto',
+        });
+        
+      } catch (error) {
+        console.error('Error generando código:', error);
+        return jsonResponse({ error: error.message }, 500);
+      }
+    }
+    
+    // ==================== 2. LISTAR CÓDIGOS DE TODOS LOS EMPLEADOS ====================
+    
+    // Listar códigos de empleados activos (útil para tener referencia)
+    if (path === '/api/nomina/movimientos/codigos-empleados' && method === 'GET') {
+      try {
+        const empleados = await db.prepare(
+          "SELECT id, nombre FROM empleados WHERE estado = 'ACTIVO' ORDER BY nombre"
+        ).all();
+        
+        const año = nowColombia().getFullYear();
+        
+        const codigos = empleados.results.map(emp => ({
+          empleado_id: emp.id,
+          nombre: emp.nombre,
+          codigo: `E${año}-${emp.id}`,
+          ejemplo: `E${año}-${emp.id} Adelanto emergencia`,
+        }));
+        
+        return jsonResponse({
+          success: true,
+          año: año,
+          total: codigos.length,
+          instrucciones: 'Use estos códigos en FUDO para registrar adelantos/movimientos de caja',
+          codigos: codigos,
+        });
+        
+      } catch (error) {
+        console.error('Error listando códigos:', error);
+        return jsonResponse({ error: error.message }, 500);
+      }
+    }
+    
     // ==================== DEBUG: Ver ventas FUDO de un customer ====================
 
     // DEBUG: Ver información completa de cuenta corriente en FUDO
@@ -1704,10 +1787,13 @@ async function handleRequest(request, env) {
         const total_bonos = body.total_bonos || 0;
         const total_descuentos = body.total_descuentos || 0;
         
-        // Calcular total a pagar
-        const total_bruto = monto_base + total_propinas + total_bonos - total_descuentos;
-        const total_pagar = total_bruto - total_movimientos_periodo;
-        
+        // Calcular totales correctamente
+        const total_bruto = monto_base + total_propinas + total_bonos; 
+        const total_descuentos_generales = total_descuentos; // Descuentos que NO son consumos/adelantos
+        const subtotal = total_bruto - total_descuentos_generales;
+        const total_pagar = subtotal - total_movimientos_periodo;
+
+
         // Crear nómina
         const result = await db.prepare(
           `INSERT INTO nominas (
@@ -1787,6 +1873,35 @@ async function handleRequest(request, env) {
         return jsonResponse({ error: error.message }, 500);
       }
     }
+    
+    // Eliminar nómina (solo si NO está pagada)
+    if (path.match(/^\/api\/nomina\/nominas\/\d+$/) && method === 'DELETE') {
+      const nominaId = parseInt(path.split('/')[4]);
+      
+      try {
+        const nomina = await db.prepare(
+          'SELECT pagada FROM nominas WHERE id = ?'
+        ).bind(nominaId).first();
+        
+        if (!nomina) {
+          return jsonResponse({ error: 'Nómina no encontrada' }, 404);
+        }
+        
+        if (nomina.pagada) {
+          return jsonResponse({ error: 'No se puede eliminar una nómina pagada' }, 400);
+        }
+        
+        // Eliminar configuración de movimientos
+        await db.prepare('DELETE FROM nomina_movimientos WHERE nomina_id = ?').bind(nominaId).run();
+        
+        // Eliminar nómina
+        await db.prepare('DELETE FROM nominas WHERE id = ?').bind(nominaId).run();
+        
+        return jsonResponse({ success: true, mensaje: 'Nómina eliminada' });
+      } catch (error) {
+        return jsonResponse({ error: error.message }, 500);
+      }
+    }
 
     // Ver configuración de descuentos de una nómina (previsualización)
     if (path.match(/^\/api\/nomina\/nominas\/\d+\/ver-descuentos$/) && method === 'GET') {
@@ -1849,7 +1964,10 @@ async function handleRequest(request, env) {
         });
         
         const totalADescontar = totalCompleto + totalParcial;
-        const montoFinalAPagar = nomina.total_pagar - totalADescontar;
+
+        // Calcular el bruto correctamente
+        const total_bruto = nomina.monto_base + nomina.total_propinas + nomina.total_bonos;
+        const montoFinalAPagar = total_bruto - totalADescontar - nomina.total_descuentos;
         
         return jsonResponse({
           success: true,
@@ -1864,8 +1982,11 @@ async function handleRequest(request, env) {
             fecha_pago: nomina.fecha_pago,
           },
           calculo: {
-            total_nomina_bruto: nomina.total_pagar,
-            total_a_descontar: totalADescontar,
+            monto_base: nomina.monto_base,
+            total_propinas: nomina.total_propinas,
+            total_bruto: total_bruto,
+            total_descuentos_generales: nomina.total_descuentos,
+            total_a_descontar_movimientos: totalADescontar,
             desglose_descuentos: {
               pagos_completos: totalCompleto,
               pagos_parciales: totalParcial,
@@ -2061,70 +2182,96 @@ async function handleRequest(request, env) {
           'SELECT * FROM empleados WHERE id = ?'
         ).bind(nomina.empleado_id).first();
         
-        // Obtener TODOS los movimientos pendientes (consumos + adelantos, más antiguos primero)
-        const movimientos = await db.prepare(
-          `SELECT * FROM movimientos 
-           WHERE empleado_id = ? 
-           AND tipo IN ('consumo', 'adelanto')
-           AND descontado = 0
-           ORDER BY fecha ASC, id ASC`
-        ).bind(nomina.empleado_id).all();
+        // Obtener SOLO los movimientos configurados en esta nómina (que NO estén en diferir)
+        const configuracion = await db.prepare(
+          `SELECT nm.*, m.tipo, m.monto, m.descripcion, m.fecha, m.fudo_sale_id
+           FROM nomina_movimientos nm
+           JOIN movimientos m ON nm.movimiento_id = m.id
+           WHERE nm.nomina_id = ?
+           AND nm.tipo_descuento != 'diferir'
+           AND m.descontado = 0
+           ORDER BY m.fecha ASC, m.id ASC`
+        ).bind(nominaId).all();
         
         let totalDescontado = 0;
         const movimientosDescontados = [];
-        const movimientosPendientes = [];
         
-        // Monto disponible para descontar = lo que se va a pagar en esta nómina
-        let montoDisponible = nomina.total_pagar;
+        console.log(`📋 Movimientos configurados para pagar: ${configuracion.results.length}`);
         
-        console.log(`💰 Monto disponible para descontar: $${montoDisponible}`);
-        console.log(`📋 Movimientos pendientes: ${movimientos.results.length}`);
-        
-        // Descontar SOLO movimientos COMPLETOS (FIFO: más antiguos primero)
-        for (const mov of movimientos.results) {
-          if (montoDisponible >= mov.monto) {
-            // Se puede pagar completo
-            montoDisponible -= mov.monto;
-            totalDescontado += mov.monto;
-            movimientosDescontados.push(mov);
-            
-            // Marcar como descontado
-            await db.prepare(
-              'UPDATE movimientos SET descontado = 1, nomina_id = ? WHERE id = ?'
-            ).bind(nominaId, mov.id).run();
-            
-            console.log(`✅ ${mov.tipo} #${mov.id} pagado completo: $${mov.monto}`);
-          } else {
-            // No alcanza para pagar este movimiento completo - queda pendiente
-            movimientosPendientes.push({
-              id: mov.id,
-              tipo: mov.tipo,
-              monto: mov.monto,
-              faltante: mov.monto - montoDisponible,
-            });
-            console.log(`⏳ ${mov.tipo} #${mov.id} pendiente: $${mov.monto} (falta: $${mov.monto - montoDisponible})`);
-          }
+        // Procesar cada movimiento según su configuración
+        for (const config of configuracion.results) {
+          const montoAPagar = config.monto_a_descontar;
+          
+          // Marcar como descontado
+          await db.prepare(
+            'UPDATE movimientos SET descontado = 1, nomina_id = ? WHERE id = ?'
+          ).bind(nominaId, config.movimiento_id).run();
+          
+          totalDescontado += montoAPagar;
+          
+          movimientosDescontados.push({
+            id: config.movimiento_id,
+            tipo: config.tipo,
+            fecha: config.fecha,
+            monto: config.monto, // Monto original
+            monto_pagado: config.monto_a_descontar, // Monto realmente descontado
+            descripcion: config.descripcion,
+            fudo_sale_id: config.fudo_sale_id,
+            tipo_pago: config.tipo_descuento, // completo o parcial
+          });
+          
+          console.log(`✅ ${config.tipo} #${config.movimiento_id} - ${config.tipo_descuento}: $${montoAPagar}`);
         }
         
-        // Calcular monto final a pagar al empleado (lo que sobra después de descontar)
-        const montoPagarEmpleado = montoDisponible;
+        // Calcular monto a pagar al empleado
+        const total_bruto = nomina.monto_base + nomina.total_propinas + nomina.total_bonos;
+        const montoPagarEmpleado = total_bruto - totalDescontado - nomina.total_descuentos;
+        
+        console.log(`💰 Total descontado: $${totalDescontado}`);
+        console.log(`💵 Monto a pagar empleado: $${montoPagarEmpleado}`);
         
         // Registrar pago en FUDO solo para CONSUMOS
         let fudoTransactionId = null;
         
         const consumosDescontados = movimientosDescontados.filter(m => m.tipo === 'consumo');
-        const totalConsumosDescontados = consumosDescontados.reduce((sum, m) => sum + m.monto, 0);
+
+        // Lo que se descuenta al empleado (con descuentos aplicados)
+        const totalDescontadoEmpleado = consumosDescontados.reduce((sum, m) => sum + m.monto, 0);
+
+        // Lo que se debe pagar en FUDO (sin descuentos de empleado)
+        const totalConsumosParaFudo = consumosDescontados.reduce((sum, m) => sum + m.monto_pagado, 0);
+
+        // Calcular abonos del periodo que ya están aplicados
+        const abonosDelPeriodo = await db.prepare(`
+          SELECT COALESCE(SUM(monto), 0) as total_abonos
+          FROM movimientos
+          WHERE empleado_id = ?
+          AND tipo = 'abono'
+          AND fecha >= ?
+          AND fecha <= ?
+        `).bind(nomina.empleado_id, nomina.periodo_inicio, nomina.periodo_fin).first();
         
-        if (empleado.fudo_customer_id && totalConsumosDescontados > 0) {
+        // Monto a pagar en FUDO = consumos del periodo - abonos ya aplicados
+        const montoPagarFudo = totalConsumosParaFudo - abonosDelPeriodo.total_abonos;
+        const diferenciaPorAbonos = abonosPosteriorAlPeriodo.total;
+
+        console.log(`💰 Consumos periodo: $${totalConsumosParaFudo}, Abonos post-periodo: $${diferenciaPorAbonos}, A pagar FUDO: $${montoPagarFudo}`);
+        
+        if (empleado.fudo_customer_id && montoPagarFudo > 0) {
           const adelantosDescontados = movimientosDescontados.filter(m => m.tipo === 'adelanto');
           const totalAdelantosDescontados = adelantosDescontados.reduce((sum, m) => sum + m.monto, 0);
           
-          const comentario = `Pago nómina #${nominaId} - Periodo ${nomina.periodo_inicio} a ${nomina.periodo_fin}. Consumos: $${totalConsumosDescontados.toLocaleString('es-CO')}${totalAdelantosDescontados > 0 ? `. Adelantos: $${totalAdelantosDescontados.toLocaleString('es-CO')}` : ''}`;
-          
+          let comentario = `Pago nómina #${nominaId} - Periodo ${nomina.periodo_inicio} a ${nomina.periodo_fin}.`;
+
+          if (totalDescontadoEmpleado !== montoPagarFudo) {
+            comentario += ` Pago FUDO: $${montoPagarFudo.toLocaleString('es-CO')} (empleado descuenta: $${totalDescontadoEmpleado.toLocaleString('es-CO')}, diferencia por abonos previos)`;
+          } else {
+             comentario += ` Consumos: $${montoPagarFudo.toLocaleString('es-CO')}`;
+          }
           const resultadoFudo = await crearPagoFudo(
             env,
             empleado.fudo_customer_id,
-            totalConsumosDescontados, // Solo registrar consumos en FUDO
+            montoPagarFudo, // ✅ Paga solo lo que realmente debe en FUDO
             comentario
           );
           
@@ -2161,19 +2308,22 @@ async function handleRequest(request, env) {
           nomina_id: nominaId,
           empleado: empleado.nombre,
           resumen_pago: {
-            total_nomina: nomina.total_pagar,
+            total_bruto: total_bruto,
+            total_descuentos_generales: nomina.total_descuentos,
             total_descontado: totalDescontado,
             monto_a_pagar_empleado: montoPagarEmpleado,
           },
           desglose_descontado: {
-            consumos: consumosDesc.reduce((s, m) => s + m.monto, 0),
+            consumos_descontado_empleado: totalDescontadoEmpleado,
+            consumos_pagado_fudo: montoPagarFudo,
+            diferencia_abonos_previos: diferenciaPorAbonos, // totalConsumosParaFudo - montoPagarFudo,
+            descuento_empresa: totalConsumosParaFudo - totalDescontadoEmpleado,
             adelantos: adelantosDesc.reduce((s, m) => s + m.monto, 0),
           },
           movimientos_procesados: {
             total_pagados: movimientosDescontados.length,
             consumos_pagados: consumosDesc.length,
-            adelantos_pagados: adelantosDesc.length,
-            aun_pendientes: movimientosPendientes.length,
+            adelantos_pagados: adelantosDesc.length
           },
           detalle_pagados: movimientosDescontados.map(m => ({
             id: m.id,
@@ -2182,11 +2332,10 @@ async function handleRequest(request, env) {
             monto: m.monto,
             descripcion: m.descripcion,
           })),
-          detalle_pendientes: movimientosPendientes,
           fudo: {
             transaction_id: fudoTransactionId,
             sincronizado: !!fudoTransactionId,
-            monto_registrado: totalConsumosDescontados,
+            monto_registrado: montoPagarFudo,
           },
         });
         
@@ -2460,6 +2609,412 @@ async function handleRequest(request, env) {
       }
     }
     
+    // ==================== NUEVOS ENDPOINTS PARA NÓMINA ====================
+
+    // ==================== OPCIÓN A: AGREGAR MOVIMIENTOS FUERA DEL PERIODO ====================
+    
+    // Agregar movimientos adicionales a una nómina (fuera del periodo)
+    if (path.match(/^\/api\/nomina\/nominas\/\d+\/agregar-movimientos$/) && method === 'POST') {
+      const nominaId = parseInt(path.split('/')[4]);
+      const body = await request.json();
+      
+      try {
+        // Verificar que la nómina existe y NO está pagada
+        const nomina = await db.prepare(
+          'SELECT * FROM nominas WHERE id = ?'
+        ).bind(nominaId).first();
+        
+        if (!nomina) {
+          return jsonResponse({ error: 'Nómina no encontrada' }, 404);
+        }
+        
+        if (nomina.pagada) {
+          return jsonResponse({ error: 'No se puede modificar una nómina ya pagada' }, 400);
+        }
+        
+        // Validar que venga el array de movimientos
+        if (!body.movimiento_ids || !Array.isArray(body.movimiento_ids) || body.movimiento_ids.length === 0) {
+          return jsonResponse({ 
+            error: 'Se requiere un array de movimiento_ids',
+            ejemplo: {
+              movimiento_ids: [64, 68],
+              tipo_descuento: "completo"  // o "parcial" con monto
+            }
+          }, 400);
+        }
+        
+        const tipoDescuento = body.tipo_descuento || 'completo';
+        
+        // Validar tipo_descuento
+        if (!['completo', 'parcial'].includes(tipoDescuento)) {
+          return jsonResponse({ 
+            error: 'tipo_descuento debe ser "completo" o "parcial"' 
+          }, 400);
+        }
+        
+        // Si es parcial, validar que venga el monto
+        if (tipoDescuento === 'parcial' && (!body.monto || body.monto <= 0)) {
+          return jsonResponse({ 
+            error: 'Para tipo_descuento "parcial" debe especificar un monto válido' 
+          }, 400);
+        }
+        
+        const resultados = [];
+        let totalAgregado = 0;
+        
+        // Procesar cada movimiento
+        for (const movimientoId of body.movimiento_ids) {
+          // Verificar que el movimiento existe y pertenece al empleado
+          const movimiento = await db.prepare(
+            'SELECT * FROM movimientos WHERE id = ? AND empleado_id = ?'
+          ).bind(movimientoId, nomina.empleado_id).first();
+          
+          if (!movimiento) {
+            resultados.push({
+              movimiento_id: movimientoId,
+              error: 'Movimiento no encontrado o no pertenece al empleado',
+              agregado: false,
+            });
+            continue;
+          }
+          
+          // Verificar que no esté ya descontado
+          if (movimiento.descontado) {
+            resultados.push({
+              movimiento_id: movimientoId,
+              error: 'El movimiento ya fue descontado en otra nómina',
+              agregado: false,
+            });
+            continue;
+          }
+          
+          // Verificar que no esté ya configurado en esta nómina
+          const yaConfigurado = await db.prepare(
+            'SELECT id FROM nomina_movimientos WHERE nomina_id = ? AND movimiento_id = ?'
+          ).bind(nominaId, movimientoId).first();
+          
+          if (yaConfigurado) {
+            resultados.push({
+              movimiento_id: movimientoId,
+              error: 'El movimiento ya está configurado en esta nómina',
+              agregado: false,
+            });
+            continue;
+          }
+          
+          // Calcular monto a descontar
+          let montoADescontar = movimiento.monto;
+          
+          if (tipoDescuento === 'parcial') {
+            montoADescontar = body.monto;
+            
+            if (montoADescontar >= movimiento.monto) {
+              resultados.push({
+                movimiento_id: movimientoId,
+                error: `El monto parcial ($${montoADescontar}) debe ser menor al total del movimiento ($${movimiento.monto})`,
+                agregado: false,
+              });
+              continue;
+            }
+          }
+          
+          // Agregar a nomina_movimientos
+          await db.prepare(
+            `INSERT INTO nomina_movimientos (nomina_id, movimiento_id, tipo_descuento, monto_a_descontar, created_at)
+             VALUES (?, ?, ?, ?, ?)`
+          ).bind(
+            nominaId,
+            movimientoId,
+            tipoDescuento,
+            montoADescontar,
+            formatDateTime(nowColombia())
+          ).run();
+          
+          totalAgregado += montoADescontar;
+          
+          resultados.push({
+            movimiento_id: movimientoId,
+            tipo: movimiento.tipo,
+            fecha: movimiento.fecha,
+            monto_original: movimiento.monto,
+            tipo_descuento: tipoDescuento,
+            monto_a_descontar: montoADescontar,
+            descripcion: movimiento.descripcion,
+            agregado: true,
+          });
+        }
+        
+        // Recalcular totales de la nómina
+        const nuevosMovimientos = await db.prepare(`
+          SELECT SUM(monto_a_descontar) as total
+          FROM nomina_movimientos
+          WHERE nomina_id = ?
+        `).bind(nominaId).first();
+        
+        const total_bruto = nomina.monto_base + nomina.total_propinas + nomina.total_bonos;
+        const nuevoTotalAPagar = total_bruto - (nuevosMovimientos.total || 0) - nomina.total_descuentos;
+        
+        // Actualizar nómina
+        await db.prepare(
+          'UPDATE nominas SET total_movimientos = ? WHERE id = ?'
+        ).bind(nuevosMovimientos.total || 0, nominaId).run();
+        
+        return jsonResponse({
+          success: true,
+          nomina_id: nominaId,
+          movimientos_agregados: resultados.filter(r => r.agregado).length,
+          total_agregado: totalAgregado,
+          nuevo_total_a_descontar: nuevosMovimientos.total || 0,
+          nuevo_total_a_pagar_empleado: nuevoTotalAPagar,
+          detalles: resultados,
+        });
+        
+      } catch (error) {
+        console.error('Error agregando movimientos:', error);
+        return jsonResponse({ error: error.message }, 500);
+      }
+    }
+    
+    // ==================== OPCIÓN C2: PAGO PARCIAL GLOBAL ====================
+    
+    // Configurar pago parcial global (el sistema decide qué movimientos pagar hasta alcanzar un monto)
+    if (path.match(/^\/api\/nomina\/nominas\/\d+\/pago-parcial-global$/) && method === 'PUT') {
+      const nominaId = parseInt(path.split('/')[4]);
+      const body = await request.json();
+      
+      try {
+        // Verificar que la nómina existe y NO está pagada
+        const nomina = await db.prepare(
+          'SELECT * FROM nominas WHERE id = ?'
+        ).bind(nominaId).first();
+        
+        if (!nomina) {
+          return jsonResponse({ error: 'Nómina no encontrada' }, 404);
+        }
+        
+        if (nomina.pagada) {
+          return jsonResponse({ error: 'No se puede modificar una nómina ya pagada' }, 400);
+        }
+        
+        // Validar monto_maximo_a_descontar
+        if (!body.monto_maximo_a_descontar || body.monto_maximo_a_descontar <= 0) {
+          return jsonResponse({ 
+            error: 'Se requiere un monto_maximo_a_descontar válido',
+            ejemplo: {
+              monto_maximo_a_descontar: 15000,
+              estrategia: "fifo"  // opcional: "fifo" (más antiguos) o "lifo" (más recientes)
+            }
+          }, 400);
+        }
+        
+        const montoMaximo = body.monto_maximo_a_descontar;
+        const estrategia = body.estrategia || 'fifo';
+        
+        // Validar estrategia
+        if (!['fifo', 'lifo'].includes(estrategia)) {
+          return jsonResponse({ 
+            error: 'estrategia debe ser "fifo" (más antiguos primero) o "lifo" (más recientes primero)' 
+          }, 400);
+        }
+        
+        // Obtener movimientos configurados en esta nómina
+        const orden = estrategia === 'fifo' ? 'ASC' : 'DESC';
+        
+        const movimientos = await db.prepare(`
+          SELECT nm.*, m.fecha, m.tipo, m.monto, m.descripcion
+          FROM nomina_movimientos nm
+          JOIN movimientos m ON nm.movimiento_id = m.id
+          WHERE nm.nomina_id = ?
+          ORDER BY m.fecha ${orden}, m.id ${orden}
+        `).bind(nominaId).all();
+        
+        if (!movimientos.results || movimientos.results.length === 0) {
+          return jsonResponse({ 
+            error: 'No hay movimientos configurados en esta nómina' 
+          }, 400);
+        }
+        
+        // Aplicar estrategia de pago parcial global
+        let montoRestante = montoMaximo;
+        const modificaciones = [];
+        let totalConfigurado = 0;
+        
+        for (const mov of movimientos.results) {
+          const montoOriginal = mov.monto;
+          
+          if (montoRestante <= 0) {
+            // Ya no hay más presupuesto - diferir
+            await db.prepare(
+              `UPDATE nomina_movimientos 
+               SET tipo_descuento = 'diferir', monto_a_descontar = 0
+               WHERE nomina_id = ? AND movimiento_id = ?`
+            ).bind(nominaId, mov.movimiento_id).run();
+            
+            modificaciones.push({
+              movimiento_id: mov.movimiento_id,
+              tipo: mov.tipo,
+              fecha: mov.fecha,
+              monto_original: montoOriginal,
+              tipo_descuento_anterior: mov.tipo_descuento,
+              tipo_descuento_nuevo: 'diferir',
+              monto_a_descontar: 0,
+            });
+            
+          } else if (montoRestante >= montoOriginal) {
+            // Se puede pagar completo
+            await db.prepare(
+              `UPDATE nomina_movimientos 
+               SET tipo_descuento = 'completo', monto_a_descontar = ?
+               WHERE nomina_id = ? AND movimiento_id = ?`
+            ).bind(montoOriginal, nominaId, mov.movimiento_id).run();
+            
+            montoRestante -= montoOriginal;
+            totalConfigurado += montoOriginal;
+            
+            modificaciones.push({
+              movimiento_id: mov.movimiento_id,
+              tipo: mov.tipo,
+              fecha: mov.fecha,
+              monto_original: montoOriginal,
+              tipo_descuento_anterior: mov.tipo_descuento,
+              tipo_descuento_nuevo: 'completo',
+              monto_a_descontar: montoOriginal,
+            });
+            
+          } else {
+            // Pago parcial (solo lo que queda del presupuesto)
+            await db.prepare(
+              `UPDATE nomina_movimientos 
+               SET tipo_descuento = 'parcial', monto_a_descontar = ?
+               WHERE nomina_id = ? AND movimiento_id = ?`
+            ).bind(montoRestante, nominaId, mov.movimiento_id).run();
+            
+            totalConfigurado += montoRestante;
+            
+            modificaciones.push({
+              movimiento_id: mov.movimiento_id,
+              tipo: mov.tipo,
+              fecha: mov.fecha,
+              monto_original: montoOriginal,
+              tipo_descuento_anterior: mov.tipo_descuento,
+              tipo_descuento_nuevo: 'parcial',
+              monto_a_descontar: montoRestante,
+              saldo_restante: montoOriginal - montoRestante,
+            });
+            
+            montoRestante = 0;
+          }
+        }
+        
+        // Calcular nuevo total a pagar
+        const total_bruto = nomina.monto_base + nomina.total_propinas + nomina.total_bonos;
+        const nuevoTotalAPagar = total_bruto - totalConfigurado - nomina.total_descuentos;
+        
+        // Actualizar nómina
+        await db.prepare(
+          'UPDATE nominas SET total_movimientos = ? WHERE id = ?'
+        ).bind(totalConfigurado, nominaId).run();
+        
+        return jsonResponse({
+          success: true,
+          nomina_id: nominaId,
+          estrategia: estrategia,
+          monto_maximo_solicitado: montoMaximo,
+          total_configurado: totalConfigurado,
+          monto_no_utilizado: montoMaximo - totalConfigurado,
+          nuevo_total_a_pagar_empleado: nuevoTotalAPagar,
+          resumen: {
+            completos: modificaciones.filter(m => m.tipo_descuento_nuevo === 'completo').length,
+            parciales: modificaciones.filter(m => m.tipo_descuento_nuevo === 'parcial').length,
+            diferidos: modificaciones.filter(m => m.tipo_descuento_nuevo === 'diferir').length,
+          },
+          modificaciones: modificaciones,
+        });
+        
+      } catch (error) {
+        console.error('Error aplicando pago parcial global:', error);
+        return jsonResponse({ error: error.message }, 500);
+      }
+    }
+    
+    // ==================== ENDPOINT ADICIONAL: ACTUALIZAR PROPINAS/BONOS ====================
+    
+    // Actualizar propinas, bonos y descuentos de una nómina
+    if (path.match(/^\/api\/nomina\/nominas\/\d+\/actualizar$/) && method === 'PUT') {
+      const nominaId = parseInt(path.split('/')[4]);
+      const body = await request.json();
+      
+      try {
+        // Verificar que la nómina existe y NO está pagada
+        const nomina = await db.prepare(
+          'SELECT * FROM nominas WHERE id = ?'
+        ).bind(nominaId).first();
+        
+        if (!nomina) {
+          return jsonResponse({ error: 'Nómina no encontrada' }, 404);
+        }
+        
+        if (nomina.pagada) {
+          return jsonResponse({ error: 'No se puede modificar una nómina ya pagada' }, 400);
+        }
+        
+        // Valores a actualizar (mantener los actuales si no se envían)
+        const total_propinas = body.total_propinas !== undefined ? body.total_propinas : nomina.total_propinas;
+        const total_bonos = body.total_bonos !== undefined ? body.total_bonos : nomina.total_bonos;
+        const total_descuentos = body.total_descuentos !== undefined ? body.total_descuentos : nomina.total_descuentos;
+        
+        // Validar que sean números positivos
+        if (total_propinas < 0 || total_bonos < 0 || total_descuentos < 0) {
+          return jsonResponse({ error: 'Los montos deben ser positivos o cero' }, 400);
+        }
+        
+        // Recalcular total a pagar
+        const total_bruto = nomina.monto_base + total_propinas + total_bonos;
+        const total_pagar = total_bruto - total_descuentos - nomina.total_movimientos;
+        
+        // Actualizar nómina
+        await db.prepare(
+          `UPDATE nominas 
+           SET total_propinas = ?, total_bonos = ?, total_descuentos = ?, total_pagar = ?
+           WHERE id = ?`
+        ).bind(
+          total_propinas,
+          total_bonos,
+          total_descuentos,
+          total_pagar,
+          nominaId
+        ).run();
+        
+        return jsonResponse({
+          success: true,
+          nomina_id: nominaId,
+          valores_anteriores: {
+            propinas: nomina.total_propinas,
+            bonos: nomina.total_bonos,
+            descuentos: nomina.total_descuentos,
+          },
+          valores_nuevos: {
+            propinas: total_propinas,
+            bonos: total_bonos,
+            descuentos: total_descuentos,
+          },
+          calculo_actualizado: {
+            monto_base: nomina.monto_base,
+            total_propinas: total_propinas,
+            total_bonos: total_bonos,
+            total_bruto: total_bruto,
+            total_descuentos_generales: total_descuentos,
+            total_movimientos: nomina.total_movimientos,
+            total_a_pagar: total_pagar,
+          },
+        });
+        
+      } catch (error) {
+        console.error('Error actualizando nómina:', error);
+        return jsonResponse({ error: error.message }, 500);
+      }
+    }
+        
     // Sincronizar movimientos de caja (adelantos/préstamos) desde FUDO
     if (path === '/api/nomina/fudo/sincronizar-movimientos-caja' && method === 'POST') {
       const body = await request.json().catch(() => ({}));
