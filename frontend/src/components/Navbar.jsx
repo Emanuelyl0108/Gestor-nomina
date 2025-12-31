@@ -11,7 +11,7 @@ export default function Navbar() {
     { path: '/dashboard', icon: Home, label: 'Dashboard' },
     { path: '/empleados', icon: Users, label: 'Empleados' },
     { path: '/movimientos', icon: DollarSign, label: 'Movimientos' },
-    { path: '/calcular-nomina', icon: Calculator, label: 'Calcular Nómina' },
+    { path: '/calcular-nomina', icon: Calculator, label: 'Nómina' },
     { path: '/propinas', icon: Gift, label: 'Propinas/Bonos' },
     { path: '/reportes', icon: FileText, label: 'Reportes' },
   ];

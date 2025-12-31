@@ -1,64 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Calendar, TrendingUp, DollarSign } from 'lucide-react';
+import { FileText, Download, Calendar } from 'lucide-react';
 import { apiRequest } from '../config/api';
 import API_CONFIG from '../config/api';
 
 export default function Reportes() {
-  const [pagos, setPagos] = useState([]);
+  const [nominasPagadas, setNominasPagadas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtros, setFiltros] = useState({
     fecha_inicio: '',
     fecha_fin: '',
-    empleado: ''
+    empleado_id: ''
   });
+  const [empleados, setEmpleados] = useState([]);
 
   useEffect(() => {
-    cargarPagos();
+    cargarDatos();
   }, []);
 
-  const cargarPagos = async () => {
+  const cargarDatos = async () => {
     try {
-      const response = await apiRequest(API_CONFIG.ENDPOINTS.PAGOS);
-      setPagos(response);
+      const [nominasData, empleadosData] = await Promise.all([
+        apiRequest(API_CONFIG.ENDPOINTS.NOMINAS_LISTAR + '?pagada=true&limit=100'),
+        apiRequest(API_CONFIG.ENDPOINTS.EMPLEADOS_TODOS)
+      ]);
+      
+      setNominasPagadas(nominasData.nominas || []);
+      setEmpleados(empleadosData || []);
     } catch (error) {
-      console.error('Error cargando pagos:', error);
+      console.error('Error cargando reportes:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const pagosFiltrados = pagos.filter(pago => {
+  const nominasFiltradas = nominasPagadas.filter(nomina => {
     let cumpleFiltros = true;
 
-    if (filtros.fecha_inicio && pago.fecha_pago < filtros.fecha_inicio) {
+    if (filtros.fecha_inicio && nomina.periodo.inicio < filtros.fecha_inicio) {
       cumpleFiltros = false;
     }
-    if (filtros.fecha_fin && pago.fecha_pago > filtros.fecha_fin) {
+    if (filtros.fecha_fin && nomina.periodo.fin > filtros.fecha_fin) {
       cumpleFiltros = false;
     }
-    if (filtros.empleado && !pago.empleado_nombre?.toLowerCase().includes(filtros.empleado.toLowerCase())) {
+    if (filtros.empleado_id && nomina.empleado.id !== parseInt(filtros.empleado_id)) {
       cumpleFiltros = false;
     }
 
     return cumpleFiltros;
   });
 
-  const totalPagado = pagosFiltrados.reduce((sum, p) => sum + (p.total_pagado || 0), 0);
-  const totalPropinas = pagosFiltrados.reduce((sum, p) => sum + (p.propinas || 0), 0);
-  const totalBonos = pagosFiltrados.reduce((sum, p) => sum + (p.bonos || 0), 0);
+  const totalPagado = nominasFiltradas.reduce((sum, n) => sum + (n.montos.total_pagar || 0), 0);
+  const totalPropinas = nominasFiltradas.reduce((sum, n) => sum + (n.montos.propinas || 0), 0);
+  const totalBonos = nominasFiltradas.reduce((sum, n) => sum + (n.montos.bonos || 0), 0);
 
   const exportarExcel = () => {
-    // Crear CSV
-    const headers = ['Fecha', 'Empleado', 'Tipo', 'Periodo', 'Monto Base', 'Propinas', 'Bonos', 'Total'];
-    const rows = pagosFiltrados.map(p => [
-      p.fecha_pago,
-      p.empleado_nombre,
-      p.tipo_nomina || 'N/A',
-      p.periodo,
-      p.monto_base || 0,
-      p.propinas || 0,
-      p.bonos || 0,
-      p.total_pagado || 0
+    const headers = ['Fecha Pago', 'Empleado', 'Periodo Inicio', 'Periodo Fin', 'Días', 'Monto Base', 'Propinas', 'Bonos', 'Descuentos', 'Total Pagado'];
+    const rows = nominasFiltradas.map(n => [
+      n.estado.fecha_pago || '',
+      n.empleado.nombre,
+      n.periodo.inicio,
+      n.periodo.fin,
+      n.dias_trabajados,
+      n.montos.monto_base || 0,
+      n.montos.propinas || 0,
+      n.montos.bonos || 0,
+      n.montos.descuentos || 0,
+      n.montos.total_pagar || 0
     ]);
 
     let csv = headers.join(',') + '\n';
@@ -66,7 +73,7 @@ export default function Reportes() {
       csv += row.join(',') + '\n';
     });
 
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -93,7 +100,7 @@ export default function Reportes() {
         <button
           onClick={exportarExcel}
           className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-          disabled={pagosFiltrados.length === 0}
+          disabled={nominasFiltradas.length === 0}
         >
           <Download size={20} />
           Exportar Excel
@@ -122,14 +129,19 @@ export default function Reportes() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Buscar Empleado</label>
-            <input
-              type="text"
-              value={filtros.empleado}
-              onChange={(e) => setFiltros({ ...filtros, empleado: e.target.value })}
-              placeholder="Nombre del empleado"
+            <label className="block text-sm font-medium text-gray-700 mb-2">Empleado</label>
+            <select
+              value={filtros.empleado_id}
+              onChange={(e) => setFiltros({ ...filtros, empleado_id: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            >
+              <option value="">Todos</option>
+              {empleados.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.nombre}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -139,9 +151,9 @@ export default function Reportes() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="text-blue-600" size={24} />
+              <FileText className="text-blue-600" size={24} />
             </div>
-            <span className="text-3xl font-bold text-gray-900">{pagosFiltrados.length}</span>
+            <span className="text-3xl font-bold text-gray-900">{nominasFiltradas.length}</span>
           </div>
           <p className="text-sm text-gray-600 font-medium">Total de Pagos</p>
           <p className="text-xs text-blue-600 mt-1 font-semibold">
@@ -152,7 +164,7 @@ export default function Reportes() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="text-green-600" size={24} />
+              <Calendar className="text-green-600" size={24} />
             </div>
             <span className="text-2xl font-bold text-gray-900">
               ${(totalPagado / 1000000).toFixed(1)}M
@@ -165,7 +177,7 @@ export default function Reportes() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Calendar className="text-purple-600" size={24} />
+              <span className="text-2xl">🎁</span>
             </div>
             <span className="text-2xl font-bold text-gray-900">
               ${((totalPropinas + totalBonos) / 1000).toFixed(0)}K
@@ -184,45 +196,55 @@ export default function Reportes() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Fecha</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-700">Fecha Pago</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Empleado</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Tipo</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Periodo</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-700">Días</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Monto Base</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Propinas</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Bonos</th>
+                <th className="text-left py-3 px-4 font-semibold text-gray-700">Extras</th>
                 <th className="text-left py-3 px-4 font-semibold text-gray-700">Total</th>
               </tr>
             </thead>
             <tbody>
-              {pagosFiltrados.length === 0 ? (
+              {nominasFiltradas.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500">
+                  <td colSpan="7" className="text-center py-8 text-gray-500">
                     No se encontraron pagos
                   </td>
                 </tr>
               ) : (
-                pagosFiltrados.map((pago, index) => (
-                  <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-900">{pago.fecha_pago?.split('T')[0]}</td>
-                    <td className="py-3 px-4 font-semibold text-gray-900">{pago.empleado_nombre}</td>
-                    <td className="py-3 px-4">
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium capitalize">
-                        {pago.tipo_nomina || 'N/A'}
+                nominasFiltradas.map((nomina) => (
+                  <tr key={nomina.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-900">
+                      {nomina.estado.fecha_pago?.split('T')[0] || 'N/A'}
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-gray-900">{nomina.empleado.nombre}</td>
+                    <td className="py-3 px-4 text-sm text-gray-600">
+                      {nomina.periodo.inicio} → {nomina.periodo.fin}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                        {nomina.dias_trabajados}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{pago.periodo}</td>
                     <td className="py-3 px-4 font-mono text-gray-900">
-                      ${(pago.monto_base || 0).toLocaleString('es-CO')}
+                      ${(nomina.montos.monto_base || 0).toLocaleString('es-CO')}
                     </td>
-                    <td className="py-3 px-4 font-mono text-green-600">
-                      ${(pago.propinas || 0).toLocaleString('es-CO')}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-purple-600">
-                      ${(pago.bonos || 0).toLocaleString('es-CO')}
+                    <td className="py-3 px-4">
+                      <div className="text-xs space-y-1">
+                        {nomina.montos.propinas > 0 && (
+                          <div className="text-green-600">+${nomina.montos.propinas.toLocaleString('es-CO')} propinas</div>
+                        )}
+                        {nomina.montos.bonos > 0 && (
+                          <div className="text-purple-600">+${nomina.montos.bonos.toLocaleString('es-CO')} bonos</div>
+                        )}
+                        {nomina.montos.descuentos > 0 && (
+                          <div className="text-red-600">-${nomina.montos.descuentos.toLocaleString('es-CO')} desc.</div>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4 font-mono font-bold text-gray-900">
-                      ${(pago.total_pagado || 0).toLocaleString('es-CO')}
+                      ${(nomina.montos.total_pagar || 0).toLocaleString('es-CO')}
                     </td>
                   </tr>
                 ))
@@ -234,3 +256,5 @@ export default function Reportes() {
     </div>
   );
 }
+
+export default Reportes;
