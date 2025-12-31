@@ -12,3 +12,10 @@ database_id = "aa36639b-e17a-4f18-8f8a-c00d664944a5"
 [vars]
 ENVIRONMENT = "production"
 BROWSERLESS_API_KEY = ""
+
+[[services]]
+binding = "ASISTENCIA"
+service = "asistencia-backend"
+
+[triggers]
+crons = ["0 */6 * * *"]

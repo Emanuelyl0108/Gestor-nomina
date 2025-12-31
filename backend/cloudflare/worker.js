@@ -624,6 +624,228 @@ async function obtenerAbonosCuentaCorriente(env, fudoCustomerId) {
 }
 
 /**
+ * Obtener propinas diarias de FUDO en un periodo
+ * @param {Object} env - Variables de entorno
+ * @param {string} fechaInicio - Fecha inicio (YYYY-MM-DD)
+ * @param {string} fechaFin - Fecha fin (YYYY-MM-DD)
+ * @returns {Object} - { total_propinas, propinas_array, dias_con_propinas }
+ */
+async function obtenerPropinasPeriodo(env, fechaInicio, fechaFin) {
+  try {
+    console.log(`🎁 Obteniendo propinas del periodo ${fechaInicio} a ${fechaFin}`);
+    
+    // Construir filtro de fechas (igual que cash_movements)
+    const fecha1 = new Date(fechaInicio);
+    fecha1.setHours(5, 0, 0, 0); // 5 AM UTC = Medianoche en Colombia
+    const t1 = fecha1.toISOString().replace(/\.\d{3}Z$/, '.000Z');
+    
+    const fecha2 = new Date(fechaFin);
+    fecha2.setHours(5, 0, 0, 0);
+    fecha2.setDate(fecha2.getDate() + 1); // Incluir el día completo
+    const t2 = fecha2.toISOString().replace(/\.\d{3}Z$/, '.000Z');
+    
+    // Obtener token
+    const token = await getFudoToken(env);
+    
+    // Llamar a API de resumen de propinas (NO usa /v1alpha1)
+    const url = `https://api.fu.do/tips_summary?dc=0&t1=${t1}&t2=${t2}`;
+    
+    console.log('📡 URL propinas summary:', url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error obteniendo propinas: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    
+    console.log(`📊 Resumen propinas:`, data);
+    
+    // Extraer total del summary
+    const totalPropinas = parseFloat(data.total || 0);
+    const cantidadPropinas = data.tipsCount || 0;
+    
+    // Para propinas por día, necesitaríamos otro endpoint o consulta
+    // Por ahora, solo retornamos el total
+    const propinasPorDia = {
+      [fechaInicio]: totalPropinas, // Simplificado: todo el periodo
+    };
+    console.log(`✅ Total propinas periodo: $${totalPropinas.toLocaleString('es-CO')}`);
+    
+    return {
+      success: true,
+      periodo: {
+        inicio: fechaInicio,
+        fin: fechaFin,
+      },
+      total_propinas: totalPropinas,
+      propinas_65_porciento: Math.round(totalPropinas * 0.60),
+      total_registros: cantidadPropinas,
+      propinas_por_dia: propinasPorDia,
+      dias_con_propinas: Object.keys(propinasPorDia).length,
+    };
+    
+  } catch (error) {
+    console.error('❌ Error obteniendo propinas:', error);
+    return {
+      success: false,
+      error: error.message,
+      total_propinas: 0,
+      propinas_65_porciento: 0,
+    };
+  }
+}
+
+/**
+ * Calcular distribución de propinas entre empleados según días trabajados
+ * @param {Object} env - Variables de entorno
+ * @param {string} fechaInicio - Fecha inicio periodo
+ * @param {string} fechaFin - Fecha fin periodo
+ * @returns {Object} - Distribución de propinas por empleado
+ */
+async function calcularDistribucionPropinas(env, fechaInicio, fechaFin) {
+  try {
+    console.log(`🧮 Calculando distribución de propinas del periodo ${fechaInicio} a ${fechaFin}`);
+    
+    // 1. Obtener propinas totales del periodo
+    const resultadoPropinas = await obtenerPropinasPeriodo(env, fechaInicio, fechaFin);
+    
+    if (!resultadoPropinas.success || resultadoPropinas.total_propinas === 0) {
+      console.log('ℹ️ No hay propinas en este periodo');
+      return {
+        success: true,
+        total_propinas: 0,
+        propinas_a_repartir: 0,
+        empleados: [],
+        mensaje: 'No hay propinas en este periodo',
+      };
+    }
+    
+    const propinasARepartir = resultadoPropinas.propinas_65_porciento;
+    
+    console.log(`💰 Propinas a repartir (65%): $${propinasARepartir.toLocaleString('es-CO')}`);
+    
+    // 2. Obtener TODOS los empleados activos
+    const empleados = await env.DB.prepare(
+      "SELECT id, nombre FROM empleados WHERE estado = 'ACTIVO' ORDER BY nombre"
+    ).all();
+    
+    console.log(`👥 Total empleados activos: ${empleados.results.length}`);
+    
+    // 3. Obtener días trabajados de cada empleado en el periodo usando el worker de asistencia
+    const diasPorEmpleado = [];
+    let totalDiasTrabajados = 0;
+    
+    for (const empleado of empleados.results) {
+      try {
+        // Llamar al worker de asistencia para obtener turnos
+        const bodyAsistencia = {
+          empleado_id: empleado.id,
+          periodo_inicio: fechaInicio,
+          periodo_fin: fechaFin
+        };
+        
+        const asistenciaRequest = new Request('https://dummy/api/nomina/calcular', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bodyAsistencia)
+        });
+        
+        const responseAsistencia = await env.ASISTENCIA.fetch(asistenciaRequest);
+        
+        if (responseAsistencia.ok) {
+          const datosAsistencia = await responseAsistencia.json();
+          const diasTrabajados = datosAsistencia.dias_trabajados || 0;
+          
+          if (diasTrabajados > 0) {
+            diasPorEmpleado.push({
+              empleado_id: empleado.id,
+              empleado_nombre: empleado.nombre,
+              dias_trabajados: diasTrabajados,
+            });
+            
+            totalDiasTrabajados += diasTrabajados;
+            
+            console.log(`  ✓ ${empleado.nombre}: ${diasTrabajados} días`);
+          }
+        }
+      } catch (error) {
+        console.warn(`  ⚠️ Error obteniendo días de ${empleado.nombre}:`, error.message);
+      }
+    }
+    
+    if (totalDiasTrabajados === 0) {
+      console.log('⚠️ No hay empleados con días trabajados en este periodo');
+      return {
+        success: true,
+        total_propinas: resultadoPropinas.total_propinas,
+        propinas_a_repartir: propinasARepartir,
+        empleados: [],
+        mensaje: 'No hay empleados con turnos en este periodo',
+      };
+    }
+    
+    console.log(`📊 Total días trabajados (todos los empleados): ${totalDiasTrabajados}`);
+    
+    // 4. Calcular proporción para cada empleado
+    const distribucion = diasPorEmpleado.map(emp => {
+      const proporcion = emp.dias_trabajados / totalDiasTrabajados;
+      const montoPropina = Math.round(propinasARepartir * proporcion);
+      
+      return {
+        empleado_id: emp.empleado_id,
+        empleado_nombre: emp.empleado_nombre,
+        dias_trabajados: emp.dias_trabajados,
+        proporcion_porcentaje: Math.round(proporcion * 10000) / 100, // 2 decimales
+        monto_propina: montoPropina,
+      };
+    });
+    
+    // Verificar que la suma cuadre (puede haber diferencias por redondeo)
+    const totalRepartido = distribucion.reduce((sum, emp) => sum + emp.monto_propina, 0);
+    const diferencia = propinasARepartir - totalRepartido;
+    
+    console.log(`✅ Total repartido: $${totalRepartido.toLocaleString('es-CO')}`);
+    if (diferencia !== 0) {
+      console.log(`⚠️ Diferencia por redondeo: $${diferencia}`);
+    }
+    
+    return {
+      success: true,
+      periodo: {
+        inicio: fechaInicio,
+        fin: fechaFin,
+      },
+      total_propinas: resultadoPropinas.total_propinas,
+      propinas_a_repartir: propinasARepartir,
+      total_dias_trabajados: totalDiasTrabajados,
+      total_empleados: distribucion.length,
+      total_repartido: totalRepartido,
+      diferencia_redondeo: diferencia,
+      empleados: distribucion,
+    };
+    
+  } catch (error) {
+    console.error('❌ Error calculando distribución de propinas:', error);
+    return {
+      success: false,
+      error: error.message,
+      total_propinas: 0,
+      propinas_a_repartir: 0,
+      empleados: [],
+    };
+  }
+}
+
+/**
  * Sincronizar consumos Y abonos de FUDO a movimientos en BD
  */
 async function sincronizarConsumosFudo(env, db, empleadoId) {
@@ -1190,7 +1412,53 @@ async function handleRequest(request, env) {
         }, 500);
       }
     }
-    
+    // ==================== PROPINAS ====================
+
+    // Obtener propinas de un periodo (ENDPOINT DE PRUEBA)
+    if (path === '/api/nomina/fudo/propinas' && method === 'GET') {
+      try {
+        const fechaInicio = url.searchParams.get('fecha_inicio');
+        const fechaFin = url.searchParams.get('fecha_fin');
+        
+        if (!fechaInicio || !fechaFin) {
+          return jsonResponse({
+            error: 'Parámetros requeridos: fecha_inicio y fecha_fin',
+            ejemplo: '/api/nomina/fudo/propinas?fecha_inicio=2025-12-01&fecha_fin=2025-12-15'
+          }, 400);
+        }
+        
+        const resultado = await obtenerPropinasPeriodo(env, fechaInicio, fechaFin);
+        
+        return jsonResponse(resultado);
+        
+      } catch (error) {
+        console.error('Error obteniendo propinas:', error);
+        return jsonResponse({ error: error.message }, 500);
+      }
+    }
+
+    // Calcular distribución de propinas entre empleados
+    if (path === '/api/nomina/fudo/propinas/distribucion' && method === 'GET') {
+      try {
+        const fechaInicio = url.searchParams.get('fecha_inicio');
+        const fechaFin = url.searchParams.get('fecha_fin');
+        
+        if (!fechaInicio || !fechaFin) {
+          return jsonResponse({
+            error: 'Parámetros requeridos: fecha_inicio y fecha_fin',
+            ejemplo: '/api/nomina/fudo/propinas/distribucion?fecha_inicio=2025-12-01&fecha_fin=2025-12-15'
+          }, 400);
+        }
+        
+        const resultado = await calcularDistribucionPropinas(env, fechaInicio, fechaFin);
+        
+        return jsonResponse(resultado);
+        
+      } catch (error) {
+        console.error('Error calculando distribución:', error);
+        return jsonResponse({ error: error.message }, 500);
+      }
+    }
     // ==================== MOVIMIENTOS ====================
     
     // Listar movimientos
@@ -1858,7 +2126,54 @@ async function handleRequest(request, env) {
         
         // Usar datos de asistencia
         const diasTrabajados = datosAsistencia.dias_trabajados;
-        const total_propinas = body.total_propinas || datosAsistencia.total_propinas || 0;
+        
+        // 🎁 CALCULAR PROPINAS AUTOMÁTICAMENTE
+
+        let total_propinas = 0;
+        let propina_info = null;
+        
+        try {
+          console.log('🎁 Calculando propinas del periodo...');
+          
+          const distribucionPropinas = await calcularDistribucionPropinas(
+            env, 
+            body.periodo_inicio, 
+            body.periodo_fin
+          );
+          
+          if (distribucionPropinas.success && distribucionPropinas.empleados.length > 0) {
+            // Buscar la propina de este empleado
+            const propinaEmpleado = distribucionPropinas.empleados.find(
+              emp => emp.empleado_id === body.empleado_id
+            );
+            
+            if (propinaEmpleado) {
+              total_propinas = propinaEmpleado.monto_propina;
+              propina_info = {
+                total_periodo: distribucionPropinas.total_propinas,
+                a_repartir_65: distribucionPropinas.propinas_a_repartir,
+                dias_trabajados: propinaEmpleado.dias_trabajados,
+                proporcion: propinaEmpleado.proporcion_porcentaje,
+                monto_asignado: propinaEmpleado.monto_propina,
+              };
+              console.log(`✅ Propina asignada: $${total_propinas.toLocaleString('es-CO')}`);
+            } else {
+              console.log('ℹ️ Empleado no tiene turnos en el periodo, no recibe propinas');
+            }
+          } else {
+            console.log('ℹ️ No hay propinas en este periodo');
+          }
+        } catch (error) {
+          console.warn('⚠️ Error calculando propinas, se omiten:', error.message);
+        }
+        
+        // Si el usuario envía propinas manualmente, usar esas
+        if (body.total_propinas !== undefined) {
+          total_propinas = body.total_propinas;
+          console.log(`⚠️ Propinas manuales especificadas: $${total_propinas.toLocaleString('es-CO')}`);
+        }
+
+
         const total_bonos = body.total_bonos || datosAsistencia.total_bonos || 0;
         const total_descuentos = body.total_descuentos || datosAsistencia.total_descuentos || 0;
         
@@ -1926,6 +2241,7 @@ async function handleRequest(request, env) {
             total_turnos_a_pagar: datosAsistencia.total_turnos_a_pagar,
             horas_totales: datosAsistencia.horas_totales,
           },
+          propinas: propina_info,
           calculo: {
             sueldo_mensual: empleado.sueldo_mensual,
             monto_base: monto_base,
