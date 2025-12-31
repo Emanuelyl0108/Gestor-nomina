@@ -257,4 +257,3 @@ export default function Reportes() {
   );
 }
 
-export default Reportes;

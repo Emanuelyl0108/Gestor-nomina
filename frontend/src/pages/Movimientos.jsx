@@ -831,5 +831,3 @@ export default function Movimientos() {
     </div>
   );
 }
-
-export default Movimientos;

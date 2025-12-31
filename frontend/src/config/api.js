@@ -1,5 +1,5 @@
 // Configuración de la API
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://asistencia-backend.emarodri834.workers.dev';
+const API_BASE_URL = 'https://gestor-nomina.emarodri834.workers.dev';
 
 const API_CONFIG = {
   BASE_URL: API_BASE_URL,
